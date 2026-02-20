@@ -20,6 +20,7 @@ const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
   whitelist: ['auth'], // only persist auth
+  timeout: 0,
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

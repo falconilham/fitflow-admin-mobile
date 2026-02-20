@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { loginThunk } from '../../store/authSlice';
+import Logo from '../../components/Logo';
 
 export default function LoginScreen() {
   const dispatch = useAppDispatch();
@@ -27,6 +28,7 @@ export default function LoginScreen() {
     const result = await dispatch(
       loginThunk({ email: email.trim(), password }),
     );
+    console.log('Login Result:', JSON.stringify(result, null, 2));
     if (loginThunk.rejected.match(result)) {
       Alert.alert('Login Failed', result.payload as string);
     }
@@ -40,8 +42,7 @@ export default function LoginScreen() {
       <View style={styles.inner}>
         {/* Logo / Title */}
         <View style={styles.header}>
-          <Text style={styles.logo}>💪</Text>
-          <Text style={styles.title}>FitFlow Admin</Text>
+          <Logo />
           <Text style={styles.subtitle}>Masuk ke akun Anda</Text>
         </View>
 
@@ -105,7 +106,6 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    fontSize: 56,
     marginBottom: 8,
   },
   title: {

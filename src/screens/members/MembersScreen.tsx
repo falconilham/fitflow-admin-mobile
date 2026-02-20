@@ -52,8 +52,9 @@ export default function MembersScreen() {
           limit: 20,
         });
         const data = res.data;
-        const rows = data.members ?? data;
-        setTotal(data.total ?? rows.length);
+        const rows = data.data ?? data.members ?? data;
+        const totalCount = data.pagination?.total ?? data.total ?? rows.length;
+        setTotal(totalCount);
         setMembers(reset ? rows : prev => [...prev, ...rows]);
         if (reset) setPage(2);
         else setPage(p => p + 1);
@@ -74,9 +75,27 @@ export default function MembersScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGymId, search, statusFilter]);
 
-  const statusColor = (s: string) => {
-    if (s === 'Active') return '#4ade80';
-    if (s === 'Expired') return '#f87171';
+  const statusColor = (item: Member) => {
+    const status = (item.status || '').toLowerCase();
+    const isSuspended = (item as any).suspended;
+
+    let isExpired = false;
+    if (item.endDate) {
+      const end = new Date(item.endDate);
+      if (!isNaN(end.getTime())) {
+        const today = new Date();
+        end.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        isExpired = end < today;
+      } else {
+        // If the date is invalid (corrupted data) and they have a package,
+        // fallback to making them expired so admins can check the record.
+        isExpired = true;
+      }
+    }
+
+    if (status === 'expired' || isExpired || isSuspended) return '#ef4444';
+    if (status === 'active') return '#4ade80';
     return '#fbbf24';
   };
 
@@ -102,10 +121,7 @@ export default function MembersScreen() {
         </View>
       </View>
       <View
-        style={[
-          styles.statusDot,
-          { backgroundColor: statusColor(item.status) },
-        ]}
+        style={[styles.statusDot, { backgroundColor: statusColor(item) }]}
       />
     </TouchableOpacity>
   );
@@ -124,12 +140,20 @@ export default function MembersScreen() {
             setPage(1);
           }}
         />
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('AddMember')}
-        >
-          <Text style={styles.addBtnText}>+ Tambah</Text>
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.importBtn}
+            onPress={() => navigation.navigate('ImportMember')}
+          >
+            <Text style={styles.importBtnText}>Import</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => navigation.navigate('AddMember')}
+          >
+            <Text style={styles.addBtnText}>+ Tambah</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Status filters */}
@@ -160,7 +184,7 @@ export default function MembersScreen() {
       ) : (
         <FlatList
           data={members}
-          keyExtractor={item => String(item.id)}
+          keyExtractor={(item, index) => String(item.id) + '_' + index}
           renderItem={renderItem}
           refreshControl={
             <RefreshControl
@@ -189,6 +213,7 @@ export default function MembersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#111' },
   searchRow: { flexDirection: 'row', padding: 16, gap: 10 },
+  actionButtons: { flexDirection: 'row', gap: 8 },
   searchInput: {
     flex: 1,
     backgroundColor: '#1E1E1E',
@@ -206,6 +231,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addBtnText: { fontWeight: 'bold', color: '#000', fontSize: 13 },
+  importBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#C8F000',
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    justifyContent: 'center',
+  },
+  importBtnText: { fontWeight: 'bold', color: '#C8F000', fontSize: 13 },
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,

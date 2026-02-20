@@ -26,6 +26,12 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
+    console.error(
+      'API Error:',
+      error?.message,
+      error?.response?.data,
+      error?.config?.url,
+    );
     if (error?.response?.status === 401) {
       store.dispatch(logout());
     }

@@ -91,8 +91,13 @@ export default function MemberDetailScreen() {
     );
   }
 
+  const status = member?.status?.toLowerCase();
   const statusColor =
-    member.status === 'Active' && !member.suspended ? '#4ade80' : '#f87171';
+    status === 'active' && !member.suspended
+      ? '#4ade80'
+      : status === 'expired' || member.suspended
+      ? '#ef4444'
+      : '#fbbf24';
   const statusLabel = member.suspended ? 'Suspended' : member.status;
   const photoUrl = member.User?.memberPhoto
     ? `${API_URL}${member.User.memberPhoto}`

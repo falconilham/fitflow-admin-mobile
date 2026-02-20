@@ -9,7 +9,10 @@ export const formatCurrency = (amount: number): string => {
 
 export const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('id-ID', {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '-';
+
+  return date.toLocaleDateString('id-ID', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',

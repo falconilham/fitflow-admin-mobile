@@ -22,6 +22,12 @@ export const getMemberDetailApi = (memberId: number) =>
 export const createMemberApi = (gymId: number, data: any) =>
   api.post('/admin/members', { ...data, gymId });
 
+export const importMemberApi = (gymId: number, data: any) =>
+  api.post('/admin/members/import', { ...data, gymId });
+
+export const generateMemberIdApi = (gymId: number) =>
+  api.get('/admin/members/generate-id', { params: { gymId } });
+
 export const updateMemberApi = (memberId: number, data: any) =>
   api.put(`/admin/members/${memberId}`, data);
 

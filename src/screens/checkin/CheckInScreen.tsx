@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,16 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector } from '../../store/hooks';
-import { getMembersApi, checkInApi } from '../../api/endpoints';
+import { getMembersApi, checkInApi, checkInByQrApi } from '../../api/endpoints';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+  useCodeScanner,
+  CameraRuntimeError,
+} from 'react-native-vision-camera';
 
 interface Member {
   id: number;
@@ -21,6 +29,7 @@ interface Member {
 }
 
 export default function CheckInScreen() {
+  const insets = useSafeAreaInsets();
   const { activeGymId } = useAppSelector(state => state.auth);
   const [tab, setTab] = useState<'scan' | 'manual'>('manual');
   const [search, setSearch] = useState('');
@@ -28,12 +37,62 @@ export default function CheckInScreen() {
   const [loading, setLoading] = useState(false);
   const [checkinLoading, setCheckinLoading] = useState<number | null>(null);
 
+  const device = useCameraDevice('back');
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const [isScanning, setIsScanning] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tab === 'scan' && !hasPermission) {
+      requestPermission();
+    }
+  }, [tab, hasPermission, requestPermission]);
+
+  const handleCheckInByQr = async (qrData: string) => {
+    if (!activeGymId) return;
+    try {
+      const res = await checkInByQrApi(activeGymId, qrData);
+      const data = res.data;
+      Alert.alert(
+        data.status === 'granted'
+          ? '✅ Check-in Berhasil'
+          : '❌ Check-in Ditolak',
+        `${data.member?.name || 'Member'}: ${data.message || data.status}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => setTimeout(() => setIsScanning(false), 2000),
+          },
+        ],
+      );
+    } catch (e: any) {
+      Alert.alert('❌ Ditolak', e?.response?.data?.error ?? 'Check-in gagal', [
+        {
+          text: 'OK',
+          onPress: () => setTimeout(() => setIsScanning(false), 2000),
+        },
+      ]);
+    }
+  };
+
+  const codeScanner = useCodeScanner({
+    codeTypes: ['qr', 'ean-13'],
+    onCodeScanned: codes => {
+      if (isScanning || codes.length === 0) return;
+      const scannedValue = codes[0].value;
+      if (scannedValue) {
+        setIsScanning(true);
+        handleCheckInByQr(scannedValue);
+      }
+    },
+  });
+
   const handleSearch = async () => {
     if (!search.trim() || !activeGymId) return;
     setLoading(true);
     try {
       const res = await getMembersApi(activeGymId, { search: search.trim() });
-      setMembers(res.data.members ?? res.data);
+      setMembers(res.data.data ?? res.data.members ?? res.data);
     } catch {
       Alert.alert('Error', 'Gagal mencari member');
     } finally {
@@ -91,7 +150,7 @@ export default function CheckInScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Tab Bar */}
       <View style={styles.tabBar}>
         <TouchableOpacity
@@ -138,7 +197,7 @@ export default function CheckInScreen() {
           ) : (
             <FlatList
               data={members}
-              keyExtractor={item => String(item.id)}
+              keyExtractor={(item, index) => String(item.id) + '_' + index}
               renderItem={renderMember}
               ListEmptyComponent={
                 <Text style={styles.emptyText}>
@@ -151,13 +210,51 @@ export default function CheckInScreen() {
           )}
         </View>
       ) : (
-        <View style={styles.centered}>
-          <Text style={styles.scanPlaceholder}>📷</Text>
-          <Text style={styles.scanText}>QR Scanner</Text>
-          <Text style={styles.scanSub}>
-            Butuh izin kamera.{'\n'}Akan diaktifkan setelah pod install (iOS)
-            atau gradle sync (Android).
-          </Text>
+        <View style={styles.cameraContainer}>
+          {!hasPermission ? (
+            <Text style={styles.scanSub}>Meminta izin kamera...</Text>
+          ) : !device ? (
+            <Text style={styles.scanSub}>
+              Kamera tidak tersedia pada perangkat ini
+            </Text>
+          ) : cameraError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>⚠️ {cameraError}</Text>
+              <Text style={styles.errorSub}>
+                Tunggu sebentar selagi sistem mengunduh modul scanner (pastikan
+                internet aktif).
+              </Text>
+              <TouchableOpacity
+                style={styles.retryBtn}
+                onPress={() => setCameraError(null)}
+              >
+                <Text style={styles.retryBtnText}>Coba Lagi</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <Camera
+                style={StyleSheet.absoluteFill}
+                device={device}
+                isActive={tab === 'scan' && !isScanning}
+                codeScanner={codeScanner}
+                onError={(e: CameraRuntimeError) => {
+                  console.error('Camera Error:', e);
+                  if (e.message.includes('barcode')) {
+                    setCameraError('Menunggu modul scanner diunduh...');
+                  } else {
+                    setCameraError(e.message);
+                  }
+                }}
+              />
+              <View style={styles.overlay}>
+                <View style={styles.scanBox} />
+                <Text style={styles.overlayText}>
+                  Arahkan QR Code ke dalam kotak
+                </Text>
+              </View>
+            </>
+          )}
         </View>
       )}
     </View>
@@ -231,14 +328,36 @@ const styles = StyleSheet.create({
   },
   checkInBtnDisabled: { backgroundColor: '#333' },
   checkInBtnText: { color: '#000', fontWeight: 'bold', fontSize: 13 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scanPlaceholder: { fontSize: 64 },
-  scanText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginTop: 12 },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  scanBox: {
+    width: 250,
+    height: 250,
+    borderWidth: 2,
+    borderColor: '#C8F000',
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+  },
+  overlayText: {
+    color: '#fff',
+    marginTop: 20,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   scanSub: {
     color: '#9CA3AF',
     fontSize: 13,
     textAlign: 'center',
-    marginTop: 8,
     paddingHorizontal: 32,
   },
   emptyText: {
@@ -248,4 +367,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loadingSpinner: { marginTop: 32 },
+  errorContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    color: '#f87171',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  errorSub: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  retryBtn: {
+    marginTop: 16,
+    backgroundColor: '#333',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  retryBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 });
