@@ -10,12 +10,14 @@ import {
   Image,
 } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getMemberDetailApi, updateMemberApi } from '../../api/endpoints';
 import { formatDate, formatCurrency } from '../../utils/format';
 import { MembersStackParamList } from '../../navigation/types';
 import { API_URL } from '../../api/client';
 
 type RouteProps = RouteProp<MembersStackParamList, 'MemberDetail'>;
+type NavProp = NativeStackNavigationProp<MembersStackParamList>;
 
 const InfoRow = ({ label, value }: { label: string; value: string }) => (
   <View style={styles.infoRow}>
@@ -26,7 +28,7 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 
 export default function MemberDetailScreen() {
   const route = useRoute<RouteProps>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavProp>();
   const { memberId } = route.params;
   const [member, setMember] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -132,17 +134,21 @@ export default function MemberDetailScreen() {
       {/* Info */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Informasi</Text>
-        <InfoRow label="Email" value={member.User?.email ?? '-'} />
-        <InfoRow label="Phone" value={member.User?.phone ?? '-'} />
+        <InfoRow
+          label="Email"
+          value={member.User?.email ?? member.email ?? '-'}
+        />
+        <InfoRow
+          label="Phone"
+          value={member.User?.phone ?? member.phone ?? '-'}
+        />
         <InfoRow label="Bergabung" value={formatDate(member.joinDate)} />
         <InfoRow label="Expired" value={formatDate(member.endDate)} />
-        <InfoRow label="Paket" value={member.MembershipPackage?.name ?? '-'} />
+        <InfoRow label="Paket" value={member.packageName ?? '-'} />
         <InfoRow
           label="Harga"
           value={
-            member.MembershipPackage?.price
-              ? formatCurrency(member.MembershipPackage.price)
-              : '-'
+            member.packagePrice ? formatCurrency(member.packagePrice) : '-'
           }
         />
       </View>
@@ -150,10 +156,14 @@ export default function MemberDetailScreen() {
       {/* Actions */}
       <View style={styles.actions}>
         <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => navigation.navigate('EditMember', { memberId })}
+        >
+          <Text style={styles.editBtnText}>✏️ Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.renewBtn}
-          onPress={() =>
-            (navigation as any).navigate('RenewMember', { memberId })
-          }
+          onPress={() => navigation.navigate('RenewMember', { memberId })}
         >
           <Text style={styles.renewBtnText}>🔄 Perpanjang</Text>
         </TouchableOpacity>
@@ -242,7 +252,17 @@ const styles = StyleSheet.create({
     maxWidth: '60%',
     textAlign: 'right',
   },
-  actions: { flexDirection: 'row', gap: 12, padding: 16, paddingBottom: 40 },
+  actions: { flexDirection: 'row', gap: 8, padding: 16, paddingBottom: 40 },
+  editBtn: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#C8F000',
+  },
+  editBtnText: { fontWeight: 'bold', color: '#C8F000', fontSize: 13 },
   renewBtn: {
     flex: 1,
     backgroundColor: '#C8F000',

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector } from '../../store/hooks';
-import { getMembersApi, checkInApi, checkInByQrApi } from '../../api/endpoints';
+import { getMembersApi, checkInByQrApi } from '../../api/endpoints';
 import {
   Camera,
   useCameraDevice,
@@ -22,6 +23,7 @@ import {
 
 interface Member {
   id: number;
+  userId: number;
   name: string;
   memberId?: string;
   status: string;
@@ -30,6 +32,7 @@ interface Member {
 
 export default function CheckInScreen() {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const { activeGymId } = useAppSelector(state => state.auth);
   const [tab, setTab] = useState<'scan' | 'manual'>('manual');
   const [search, setSearch] = useState('');
@@ -51,11 +54,31 @@ export default function CheckInScreen() {
   const handleCheckInByQr = async (qrData: string) => {
     if (!activeGymId) return;
     try {
-      const res = await checkInByQrApi(activeGymId, qrData);
+      // QR codes are JSON strings: { userId, gymId, membershipId }
+      let parsed: { userId?: number; gymId?: number; membershipId?: number };
+      try {
+        parsed = JSON.parse(qrData);
+      } catch {
+        Alert.alert('❌ QR Tidak Valid', 'Format QR code tidak dikenali.');
+        return;
+      }
+
+      const { userId, gymId: scannedGymId, membershipId } = parsed;
+      if (!userId || !scannedGymId || !membershipId) {
+        Alert.alert(
+          '❌ QR Tidak Valid',
+          'QR code tidak mengandung data yang diperlukan.',
+        );
+        return;
+      }
+
+      const res = await checkInByQrApi(scannedGymId, userId, membershipId);
       const data = res.data;
       Alert.alert(
-        data.status === 'granted'
-          ? '✅ Check-in Berhasil'
+        data.access === 'granted'
+          ? data.type === 'checkout'
+            ? '✅ Check-out Berhasil'
+            : '✅ Check-in Berhasil'
           : '❌ Check-in Ditolak',
         `${data.member?.name || 'Member'}: ${data.message || data.status}`,
         [
@@ -66,12 +89,18 @@ export default function CheckInScreen() {
         ],
       );
     } catch (e: any) {
-      Alert.alert('❌ Ditolak', e?.response?.data?.error ?? 'Check-in gagal', [
-        {
-          text: 'OK',
-          onPress: () => setTimeout(() => setIsScanning(false), 2000),
-        },
-      ]);
+      Alert.alert(
+        '❌ Ditolak',
+        e?.response?.data?.message ??
+          e?.response?.data?.error ??
+          'Check-in gagal',
+        [
+          {
+            text: 'OK',
+            onPress: () => setTimeout(() => setIsScanning(false), 2000),
+          },
+        ],
+      );
     }
   };
 
@@ -104,14 +133,24 @@ export default function CheckInScreen() {
     if (!activeGymId) return;
     setCheckinLoading(member.id);
     try {
-      const res = await checkInApi(activeGymId, member.id);
-      const status = res.data.status;
+      const res = await checkInByQrApi(activeGymId, member.userId, member.id);
+      const data = res.data;
+      const isCheckout = data.type === 'checkout';
       Alert.alert(
-        status === 'granted' ? '✅ Check-in Berhasil' : '❌ Check-in Ditolak',
-        `${member.name}: ${res.data.message ?? status}`,
+        data.access === 'granted'
+          ? isCheckout
+            ? '✅ Check-out Berhasil'
+            : '✅ Check-in Berhasil'
+          : '❌ Check-in Ditolak',
+        `${member.name}: ${data.message ?? data.status}`,
       );
     } catch (e: any) {
-      Alert.alert('❌ Ditolak', e?.response?.data?.error ?? 'Check-in gagal');
+      Alert.alert(
+        '❌ Ditolak',
+        e?.response?.data?.message ??
+          e?.response?.data?.error ??
+          'Check-in gagal',
+      );
     } finally {
       setCheckinLoading(null);
     }
@@ -236,7 +275,7 @@ export default function CheckInScreen() {
               <Camera
                 style={StyleSheet.absoluteFill}
                 device={device}
-                isActive={tab === 'scan' && !isScanning}
+                isActive={isFocused && tab === 'scan' && !isScanning}
                 codeScanner={codeScanner}
                 onError={(e: CameraRuntimeError) => {
                   console.error('Camera Error:', e);

@@ -15,9 +15,16 @@ const api = axios.create({
 
 // Inject Bearer token from Redux store on every request
 api.interceptors.request.use(config => {
-  const token = store.getState().auth?.token;
+  const state = store.getState();
+  const token = state.auth?.token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // Inject X-Gym-Id so extractGymContext middleware on the backend
+  // can always resolve req.gymId (it reads X-Gym-Id as Priority 1).
+  const activeGymId = state.auth?.activeGymId;
+  if (activeGymId) {
+    config.headers['X-Gym-Id'] = String(activeGymId);
   }
   return config;
 });

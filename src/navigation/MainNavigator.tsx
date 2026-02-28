@@ -11,10 +11,18 @@ import MemberDetailScreen from '../screens/members/MemberDetailScreen';
 import AddMemberScreen from '../screens/members/AddMemberScreen';
 import ImportMemberScreen from '../screens/members/ImportMemberScreen';
 import RenewMemberScreen from '../screens/members/RenewMemberScreen';
-import { MainTabParamList, MembersStackParamList } from './types';
+import EditMemberScreen from '../screens/members/EditMemberScreen';
+import StoreScreen from '../screens/store/StoreScreen';
+import AddEditProductScreen from '../screens/store/AddEditProductScreen';
+import {
+  MainTabParamList,
+  MembersStackParamList,
+  StoreStackParamList,
+} from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const MembersStack = createNativeStackNavigator<MembersStackParamList>();
+const StoreStack = createNativeStackNavigator<StoreStackParamList>();
 
 function MembersNavigator() {
   return (
@@ -37,6 +45,11 @@ function MembersNavigator() {
         options={{ title: 'Detail Member' }}
       />
       <MembersStack.Screen
+        name="EditMember"
+        component={EditMemberScreen}
+        options={{ title: 'Edit Member' }}
+      />
+      <MembersStack.Screen
         name="AddMember"
         component={AddMemberScreen}
         options={{ title: 'Tambah Member' }}
@@ -55,12 +68,48 @@ function MembersNavigator() {
   );
 }
 
-import { LayoutDashboard, QrCode, Users, UserRound } from 'lucide-react-native';
+function StoreNavigator() {
+  return (
+    <StoreStack.Navigator
+      screenOptions={{
+        headerStyle: styles.headerStyle,
+        headerTintColor: '#fff',
+        headerTitleStyle: styles.headerTitleStyle,
+        contentStyle: { backgroundColor: '#111' },
+      }}
+    >
+      <StoreStack.Screen
+        name="StoreMain"
+        component={StoreScreen}
+        options={{ title: 'Store' }}
+      />
+      <StoreStack.Screen
+        name="AddProduct"
+        component={AddEditProductScreen}
+        options={{ title: 'Tambah Produk' }}
+      />
+      <StoreStack.Screen
+        name="EditProduct"
+        component={AddEditProductScreen}
+        options={{ title: 'Edit Produk' }}
+      />
+    </StoreStack.Navigator>
+  );
+}
+
+import {
+  LayoutDashboard,
+  QrCode,
+  Users,
+  UserRound,
+  ShoppingCart,
+} from 'lucide-react-native';
 
 const TAB_ICONS: Record<string, typeof LayoutDashboard> = {
   Dashboard: LayoutDashboard,
   CheckIn: QrCode,
   Members: Users,
+  Store: ShoppingCart,
   Profile: UserRound,
 };
 
@@ -106,6 +155,11 @@ export default function MainNavigator() {
         name="Members"
         component={MembersNavigator}
         options={{ title: 'Members', headerShown: false }}
+      />
+      <Tab.Screen
+        name="Store"
+        component={StoreNavigator}
+        options={{ title: 'Store', headerShown: false }}
       />
       <Tab.Screen
         name="Profile"

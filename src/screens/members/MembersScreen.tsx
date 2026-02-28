@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -27,6 +28,59 @@ interface Member {
 }
 
 const STATUS_FILTERS = ['all', 'active', 'expired', 'suspended'];
+const PAGE_LIMIT = 10;
+
+// Stable function outside component — no new reference on renders
+const getStatusColor = (item: Member): string => {
+  const status = (item.status || '').toLowerCase();
+  const isSuspended = (item as any).suspended;
+
+  let isExpired = false;
+  if (item.endDate) {
+    const end = new Date(item.endDate);
+    if (!isNaN(end.getTime())) {
+      const today = new Date();
+      end.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      isExpired = end < today;
+    } else {
+      isExpired = true;
+    }
+  }
+
+  if (status === 'expired' || isExpired || isSuspended) return '#ef4444';
+  if (status === 'active') return '#4ade80';
+  return '#fbbf24';
+};
+
+// Memoized row — only re-renders when this member's data changes
+const MemberCard = React.memo(
+  ({ item, onPress }: { item: Member; onPress: (id: number) => void }) => {
+    const color = getStatusColor(item);
+    return (
+      <TouchableOpacity style={styles.card} onPress={() => onPress(item.id)}>
+        <View style={styles.cardLeft}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {item.name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View>
+            <Text style={styles.name}>{item.name}</Text>
+            {item.memberId ? (
+              <Text style={styles.meta}>ID: {item.memberId}</Text>
+            ) : null}
+            <Text style={styles.meta}>
+              {item.packageName ?? 'No package'} · Exp:{' '}
+              {formatDate(item.endDate)}
+            </Text>
+          </View>
+        </View>
+        <View style={[styles.statusDot, { backgroundColor: color }]} />
+      </TouchableOpacity>
+    );
+  },
+);
 
 export default function MembersScreen() {
   const navigation =
@@ -36,94 +90,73 @@ export default function MembersScreen() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Use refs so fetchMembers closure always has latest values
+  const pageRef = useRef(1);
+  const isFetchingRef = useRef(false);
 
   const fetchMembers = useCallback(
     async (reset = false) => {
       if (!activeGymId) return;
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
+      const currentPage = reset ? 1 : pageRef.current;
+
       try {
-        const currentPage = reset ? 1 : page;
         const res = await getMembersApi(activeGymId, {
           search,
           status: statusFilter === 'all' ? undefined : statusFilter,
           page: currentPage,
-          limit: 20,
+          limit: PAGE_LIMIT,
         });
         const data = res.data;
-        const rows = data.data ?? data.members ?? data;
-        const totalCount = data.pagination?.total ?? data.total ?? rows.length;
-        setTotal(totalCount);
-        setMembers(reset ? rows : prev => [...prev, ...rows]);
-        if (reset) setPage(2);
-        else setPage(p => p + 1);
+        const rows: Member[] = data.data ?? data.members ?? data;
+        const total = data.pagination?.total ?? data.total ?? rows.length;
+
+        setMembers(prev => (reset ? rows : [...prev, ...rows]));
+        pageRef.current = currentPage + 1;
+        setHasMore(currentPage * PAGE_LIMIT < total);
       } catch (e) {
         console.error('Members fetch error:', e);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
         setRefreshing(false);
+        isFetchingRef.current = false;
       }
     },
-    [activeGymId, search, statusFilter, page],
+    [activeGymId, search, statusFilter],
   );
 
-  useEffect(() => {
-    setLoading(true);
-    setMembers([]);
-    fetchMembers(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGymId, search, statusFilter]);
+  // Initial load & re-load when filter/search/gymId changes — but gated on
+  // tab focus so we don't fire API calls in the background while another
+  // tab is active (bottom tabs keep every screen mounted at all times).
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      setMembers([]);
+      setHasMore(true);
+      pageRef.current = 1;
+      fetchMembers(true);
+      // fetchMembers is memoised via useCallback and changes when
+      // activeGymId / search / statusFilter change, so this re-runs correctly.
+    }, [fetchMembers]),
+  );
 
-  const statusColor = (item: Member) => {
-    const status = (item.status || '').toLowerCase();
-    const isSuspended = (item as any).suspended;
+  const handleNavigate = useCallback(
+    (id: number) => navigation.navigate('MemberDetail', { memberId: id }),
+    [navigation],
+  );
 
-    let isExpired = false;
-    if (item.endDate) {
-      const end = new Date(item.endDate);
-      if (!isNaN(end.getTime())) {
-        const today = new Date();
-        end.setHours(0, 0, 0, 0);
-        today.setHours(0, 0, 0, 0);
-        isExpired = end < today;
-      } else {
-        // If the date is invalid (corrupted data) and they have a package,
-        // fallback to making them expired so admins can check the record.
-        isExpired = true;
-      }
-    }
-
-    if (status === 'expired' || isExpired || isSuspended) return '#ef4444';
-    if (status === 'active') return '#4ade80';
-    return '#fbbf24';
-  };
-
-  const renderItem = ({ item }: { item: Member }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate('MemberDetail', { memberId: item.id })}
-    >
-      <View style={styles.cardLeft}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View>
-          <Text style={styles.name}>{item.name}</Text>
-          {item.memberId ? (
-            <Text style={styles.meta}>ID: {item.memberId}</Text>
-          ) : null}
-          <Text style={styles.meta}>
-            {item.packageName ?? 'No package'} · Exp: {formatDate(item.endDate)}
-          </Text>
-        </View>
-      </View>
-      <View
-        style={[styles.statusDot, { backgroundColor: statusColor(item) }]}
-      />
-    </TouchableOpacity>
+  const renderItem = useCallback(
+    ({ item }: { item: Member }) => (
+      <MemberCard item={item} onPress={handleNavigate} />
+    ),
+    [handleNavigate],
   );
 
   return (
@@ -137,7 +170,6 @@ export default function MembersScreen() {
           value={search}
           onChangeText={t => {
             setSearch(t);
-            setPage(1);
           }}
         />
         <View style={styles.actionButtons}>
@@ -191,15 +223,24 @@ export default function MembersScreen() {
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
+                pageRef.current = 1;
                 fetchMembers(true);
               }}
               tintColor="#C8F000"
             />
           }
           onEndReached={() => {
-            if (members.length < total) fetchMembers();
+            if (hasMore && !loadingMore) {
+              setLoadingMore(true);
+              fetchMembers();
+            }
           }}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator color="#C8F000" style={styles.loadingMore} />
+            ) : null
+          }
           ListEmptyComponent={
             <Text style={styles.empty}>Tidak ada member ditemukan</Text>
           }
@@ -283,5 +324,6 @@ const styles = StyleSheet.create({
   statusDot: { width: 10, height: 10, borderRadius: 5 },
   empty: { color: '#6B7280', textAlign: 'center', marginTop: 40 },
   loadingSpinner: { marginTop: 40 },
+  loadingMore: { paddingVertical: 20 },
   listContent: { padding: 16, paddingBottom: 80 },
 });

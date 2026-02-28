@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,28 +9,24 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../../store/hooks';
 import {
-  createMemberApi,
-  getPackagesApi,
+  getMemberDetailApi,
+  updateMemberApi,
   getGymSettingsPublicApi,
   generateMemberIdApi,
 } from '../../api/endpoints';
+import { MembersStackParamList } from '../../navigation/types';
 
-interface Package {
-  id: number;
-  name: string;
-  price: number;
-  durationMonths: number;
-}
+type RouteProps = RouteProp<MembersStackParamList, 'EditMember'>;
 
-export default function AddMemberScreen() {
+export default function EditMemberScreen() {
+  const route = useRoute<RouteProps>();
   const navigation = useNavigation();
+  const { memberId } = route.params;
   const { activeGymId } = useAppSelector(state => state.auth);
 
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -38,45 +34,49 @@ export default function AddMemberScreen() {
     memberId: '',
   });
   const [loading, setLoading] = useState(false);
-  const [pkgLoading, setPkgLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
+  const [generatingId, setGeneratingId] = useState(false);
 
   // Settings from /admin/settings/public
   const [mandatoryContact, setMandatoryContact] = useState<'email' | 'phone'>(
     'email',
   );
   const [requireMemberId, setRequireMemberId] = useState(false);
-  const [generatingId, setGeneratingId] = useState(false);
 
   const phoneRequired = mandatoryContact === 'phone';
   const emailRequired = mandatoryContact === 'email';
 
+  const fetchData = useCallback(async () => {
+    try {
+      const [memberRes, settingsRes] = await Promise.all([
+        getMemberDetailApi(memberId),
+        activeGymId
+          ? getGymSettingsPublicApi(activeGymId)
+          : Promise.resolve(null),
+      ]);
+
+      const m = memberRes.data;
+      setForm({
+        name: m.User?.name ?? m.name ?? '',
+        email: m.User?.email ?? m.email ?? '',
+        phone: m.User?.phone ?? m.phone ?? '',
+        memberId: m.memberId ?? '',
+      });
+
+      if (settingsRes) {
+        setMandatoryContact(settingsRes.data.mandatoryContact || 'email');
+        setRequireMemberId(settingsRes.data.requireMemberId || false);
+      }
+    } catch {
+      Alert.alert('Error', 'Gagal memuat data member');
+    } finally {
+      setFetching(false);
+    }
+  }, [memberId, activeGymId]);
+
   useEffect(() => {
-    if (!activeGymId) return;
-
-    const fetchPackages = async () => {
-      try {
-        const res = await getPackagesApi(activeGymId);
-        setPackages(res.data);
-      } catch {
-        Alert.alert('Error', 'Gagal memuat paket membership');
-      } finally {
-        setPkgLoading(false);
-      }
-    };
-
-    const fetchSettings = async () => {
-      try {
-        const res = await getGymSettingsPublicApi(activeGymId);
-        setMandatoryContact(res.data.mandatoryContact || 'email');
-        setRequireMemberId(res.data.requireMemberId || false);
-      } catch {
-        // Fall back to defaults silently
-      }
-    };
-
-    fetchPackages();
-    fetchSettings();
-  }, [activeGymId]);
+    fetchData();
+  }, [fetchData]);
 
   const handleAutoId = async () => {
     if (!activeGymId) return;
@@ -108,34 +108,37 @@ export default function AddMemberScreen() {
       Alert.alert('Error', 'Member ID wajib diisi');
       return;
     }
-    if (!selectedPackage) {
-      Alert.alert('Error', 'Pilih paket membership');
-      return;
-    }
 
     setLoading(true);
     try {
-      await createMemberApi(activeGymId!, {
+      await updateMemberApi(memberId, {
         name: form.name,
         email: form.email,
         phone: form.phone,
         memberId: form.memberId || undefined,
-        packageId: selectedPackage,
       });
-      Alert.alert('Berhasil', 'Member baru berhasil ditambahkan', [
+      Alert.alert('Berhasil', 'Data member berhasil diperbarui', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
       Alert.alert(
         'Error',
-        e?.response?.data?.error ??
-          e?.response?.data?.message ??
-          'Gagal menambah member',
+        e?.response?.data?.message ??
+          e?.response?.data?.error ??
+          'Gagal memperbarui member',
       );
     } finally {
       setLoading(false);
     }
   };
+
+  if (fetching) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color="#C8F000" size="large" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
@@ -155,35 +158,35 @@ export default function AddMemberScreen() {
           />
         </View>
 
-        {/* Member ID (only when required by settings) */}
-        {requireMemberId && (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Member ID *</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={[styles.input, styles.inputFlex]}
-                placeholderTextColor="#666"
-                placeholder="e.g. MEM-001"
-                autoCapitalize="characters"
-                value={form.memberId}
-                onChangeText={t => setForm(prev => ({ ...prev, memberId: t }))}
-              />
-              <TouchableOpacity
-                style={styles.autoBtn}
-                onPress={handleAutoId}
-                disabled={generatingId}
-              >
-                {generatingId ? (
-                  <ActivityIndicator color="#000" size="small" />
-                ) : (
-                  <Text style={styles.autoBtnText}>Auto</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+        {/* Member ID */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>
+            Member ID{requireMemberId ? ' *' : ' (Opsional)'}
+          </Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, styles.inputFlex]}
+              placeholderTextColor="#666"
+              placeholder="e.g. MEM-001"
+              autoCapitalize="characters"
+              value={form.memberId}
+              onChangeText={t => setForm(prev => ({ ...prev, memberId: t }))}
+            />
+            <TouchableOpacity
+              style={styles.autoBtn}
+              onPress={handleAutoId}
+              disabled={generatingId}
+            >
+              {generatingId ? (
+                <ActivityIndicator color="#000" size="small" />
+              ) : (
+                <Text style={styles.autoBtnText}>Auto</Text>
+              )}
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
 
-        {/* Email — required when mandatoryContact === 'email', optional when 'phone' */}
+        {/* Email */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>
             Email{emailRequired ? ' *' : ' (Opsional)'}
@@ -197,14 +200,9 @@ export default function AddMemberScreen() {
             value={form.email}
             onChangeText={t => setForm(prev => ({ ...prev, email: t }))}
           />
-          {emailRequired && (
-            <Text style={styles.hint}>
-              Link undangan akan dikirim ke email ini.
-            </Text>
-          )}
         </View>
 
-        {/* Phone — required when mandatoryContact === 'phone', optional when 'email' */}
+        {/* Phone */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>
             No. HP{phoneRequired ? ' *' : ' (Opsional)'}
@@ -220,39 +218,6 @@ export default function AddMemberScreen() {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Pilih Paket Membership *</Text>
-        {pkgLoading ? (
-          <ActivityIndicator color="#C8F000" />
-        ) : packages.length === 0 ? (
-          <Text style={styles.emptyText}>Belum ada paket di gym ini</Text>
-        ) : (
-          packages.map(pkg => (
-            <TouchableOpacity
-              key={pkg.id}
-              style={[
-                styles.packageCard,
-                selectedPackage === pkg.id && styles.packageCardActive,
-              ]}
-              onPress={() => setSelectedPackage(pkg.id)}
-            >
-              <Text
-                style={[
-                  styles.packageName,
-                  selectedPackage === pkg.id && styles.packageNameActive,
-                ]}
-              >
-                {pkg.name}
-              </Text>
-              <Text style={styles.packageMeta}>
-                {pkg.durationMonths} bulan · Rp{' '}
-                {pkg.price.toLocaleString('id-ID')}
-              </Text>
-            </TouchableOpacity>
-          ))
-        )}
-      </View>
-
       <TouchableOpacity
         style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
         onPress={handleSubmit}
@@ -261,7 +226,7 @@ export default function AddMemberScreen() {
         {loading ? (
           <ActivityIndicator color="#000" />
         ) : (
-          <Text style={styles.submitBtnText}>Simpan Member</Text>
+          <Text style={styles.submitBtnText}>Simpan Perubahan</Text>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -270,6 +235,12 @@ export default function AddMemberScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#111' },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111',
+  },
   section: {
     margin: 16,
     backgroundColor: '#1E1E1E',
@@ -289,7 +260,6 @@ const styles = StyleSheet.create({
   },
   fieldGroup: { marginBottom: 14 },
   label: { color: '#9CA3AF', fontSize: 13, marginBottom: 6 },
-  hint: { color: '#6B7280', fontSize: 11, marginTop: 4 },
   inputRow: { flexDirection: 'row', gap: 8 },
   inputFlex: { flex: 1 },
   input: {
@@ -311,22 +281,6 @@ const styles = StyleSheet.create({
     minWidth: 64,
   },
   autoBtnText: { fontWeight: 'bold', color: '#000', fontSize: 13 },
-  packageCard: {
-    padding: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#333',
-    marginBottom: 10,
-    backgroundColor: '#2C2C2C',
-  },
-  packageCardActive: {
-    borderColor: '#C8F000',
-    backgroundColor: 'rgba(200,240,0,0.08)',
-  },
-  packageName: { color: '#fff', fontWeight: '600', fontSize: 15 },
-  packageNameActive: { color: '#C8F000' },
-  packageMeta: { color: '#9CA3AF', fontSize: 12, marginTop: 4 },
-  emptyText: { color: '#6B7280', textAlign: 'center', paddingVertical: 12 },
   submitBtn: {
     backgroundColor: '#C8F000',
     margin: 16,

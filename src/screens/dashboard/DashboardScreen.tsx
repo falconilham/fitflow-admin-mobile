@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -8,10 +9,37 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setActiveGym } from '../../store/authSlice';
-import { getStatsApi, getMyGymsApi } from '../../api/endpoints';
-import { formatCurrency } from '../../utils/format';
+import {
+  getStatsApi,
+  getMyGymsApi,
+  getRecentCheckInsApi,
+} from '../../api/endpoints';
+import { formatCurrency, formatDate } from '../../utils/format';
+import {
+  Users as UsersIcon,
+  UserCheck,
+  Wallet,
+  Plus,
+  RefreshCw,
+  History,
+  UserPlus,
+} from 'lucide-react-native';
+import {
+  MainTabParamList,
+  MembersStackParamList,
+} from '../../navigation/types';
+
+// Composite type: we're inside the Tab, but need to jump into Members stack
+type DashboardNavProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'Dashboard'>,
+  NativeStackNavigationProp<MembersStackParamList>
+>;
 
 interface Stats {
   totalMembers: number;
@@ -25,14 +53,12 @@ interface Gym {
   name: string;
 }
 
-import {
-  Users as UsersIcon,
-  UserCheck,
-  Wallet,
-  Plus,
-  RefreshCw,
-  History,
-} from 'lucide-react-native';
+interface CheckInRecord {
+  id: number;
+  memberName: string;
+  memberId?: string;
+  checkedInAt: string;
+}
 
 const StatCard = ({
   label,
@@ -49,60 +75,102 @@ const StatCard = ({
     <View style={[styles.statIconContainer, { backgroundColor: `${color}15` }]}>
       <IconComponent size={20} color={color} />
     </View>
-
     <View style={styles.statInfo}>
-      <Text style={styles.statValue}>{value}</Text>
+      <Text
+        style={styles.statValue}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.6}
+      >
+        {value}
+      </Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   </View>
 );
 
 export default function DashboardScreen() {
+  const navigation = useNavigation<DashboardNavProp>();
   const dispatch = useAppDispatch();
   const { admin, activeGymId } = useAppSelector(state => state.auth);
   const [stats, setStats] = useState<Stats | null>(null);
   const [gyms, setGyms] = useState<Gym[]>([]);
+  const [recentCheckIns, setRecentCheckIns] = useState<CheckInRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    try {
-      let currentGymId = activeGymId;
-      if (!currentGymId && admin?.role === 'owner') {
-        const gymsRes = await getMyGymsApi();
-        if (gymsRes.data.length > 0) {
-          setGyms(gymsRes.data);
-          currentGymId = gymsRes.data[0].id;
-          dispatch(setActiveGym(gymsRes.data[0].id));
+  // Derive the active gym's display name from the list (handles gym switching)
+  const activeGymName =
+    gyms.find(g => g.id === activeGymId)?.name ?? admin?.Gym?.name ?? 'My Gym';
+
+  const fetchData = useCallback(
+    async (currentActiveGymId: number | null = activeGymId) => {
+      try {
+        let gymId = currentActiveGymId;
+
+        // Owner with no gym yet — fetch their gyms first
+        if (!gymId && admin?.role === 'owner') {
+          const gymsRes = await getMyGymsApi();
+          console.log({ gymsRes });
+          if (gymsRes.data.length > 0) {
+            setGyms(gymsRes.data);
+            gymId = gymsRes.data[0].id;
+            dispatch(setActiveGym(gymsRes.data[0].id));
+          }
         }
-      }
-      if (!currentGymId) return;
+        if (!gymId) return;
 
-      const [statsRes, gymsRes] = await Promise.all([
-        getStatsApi(currentGymId),
-        admin?.role === 'owner' && gyms.length === 0
-          ? getMyGymsApi()
-          : Promise.resolve({ data: gyms }),
-      ]);
-      setStats(statsRes.data);
-      if (gymsRes.data.length > 0 && gyms.length === 0) {
-        setGyms(gymsRes.data);
-      }
-    } catch (e: any) {
-      console.error('Dashboard fetch error:', e?.message || e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [activeGymId, admin?.role, dispatch, gyms]);
+        // Fetch stats + gym list + recent check-ins in parallel
+        const [statsRes, gymsRes, checkInsRes] = await Promise.all([
+          getStatsApi(gymId),
+          admin?.role === 'owner' ? getMyGymsApi() : Promise.resolve(null),
+          getRecentCheckInsApi(gymId, 5),
+        ]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+        setStats(statsRes.data);
+
+        if (gymsRes && gymsRes.data.length > 0) {
+          setGyms(gymsRes.data);
+        }
+
+        // Normalise: backend may return array directly or { data: [...] }
+        const checkInsData = Array.isArray(checkInsRes.data)
+          ? checkInsRes.data
+          : checkInsRes.data?.data ?? checkInsRes.data?.checkIns ?? [];
+        setRecentCheckIns(checkInsData.slice(0, 5));
+      } catch (e: any) {
+        console.log({ e });
+        console.error('Dashboard fetch error:', e?.message || e);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [activeGymId, admin?.role, dispatch],
+  );
+
+  // Only fetch when this tab is actually focused — avoids background API calls
+  // when other tabs are active (bottom tabs keep all screens mounted)
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
+  };
+
+  // Navigate into Members tab then push the desired screen
+  const goToAddMember = () => {
+    navigation.navigate('Members');
+    // Small delay lets the tab switch settle before pushing onto the stack
+    setTimeout(() => navigation.navigate('AddMember'), 100);
+  };
+
+  const goToRenewMember = () => {
+    navigation.navigate('Members');
   };
 
   if (loading) {
@@ -125,11 +193,11 @@ export default function DashboardScreen() {
         />
       }
     >
-      {/* Premium Header */}
+      {/* Header — shows the currently selected gym name */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.gymName}>{admin?.Gym?.name || 'My Gym'}</Text>
+            <Text style={styles.gymName}>{activeGymName}</Text>
             <Text style={styles.headerSubtitle}>
               Real-time performance summary
             </Text>
@@ -152,7 +220,7 @@ export default function DashboardScreen() {
           icon={UserCheck}
         />
         <StatCard
-          label="Check-in"
+          label="Check-in Hari Ini"
           value={String(stats?.dailyCheckIns ?? 0)}
           color="#4ade80"
           icon={Plus}
@@ -165,17 +233,17 @@ export default function DashboardScreen() {
         />
       </View>
 
-      {/* Quick Actions */}
+      {/* Quick Actions — wired to navigation */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionGrid}>
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={goToAddMember}>
             <View style={[styles.actionIcon, styles.actionIconAdd]}>
-              <Plus size={20} color="#000" />
+              <UserPlus size={20} color="#000" />
             </View>
             <Text style={styles.actionLabel}>Add Member</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={goToRenewMember}>
             <View style={[styles.actionIcon, styles.actionIconRenew]}>
               <RefreshCw size={20} color="#fff" />
             </View>
@@ -184,34 +252,51 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Recent Activity Placeholder */}
+      {/* Recent Activity — real data from API */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('CheckIn')}>
             <Text style={styles.viewAll}>View All</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.activityList}>
-          {[1, 2, 3].map(i => (
-            <View key={i} style={styles.activityItem}>
-              <View style={styles.activityDot} />
+          {recentCheckIns.length > 0 ? (
+            recentCheckIns.map(record => (
+              <View key={record.id} style={styles.activityItem}>
+                <View style={styles.activityDot} />
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityTitle}>
+                    {record.memberName} check-in
+                  </Text>
+                  <Text style={styles.activityTime}>
+                    {formatDate(record.checkedInAt)}
+                  </Text>
+                </View>
+                <History size={16} color="#4B5563" />
+              </View>
+            ))
+          ) : (
+            // Graceful empty state when there are no check-ins yet
+            <View style={styles.activityItem}>
+              <View style={[styles.activityDot, styles.activityDotEmpty]} />
               <View style={styles.activityInfo}>
                 <Text style={styles.activityTitle}>
-                  Member Check-in completed
+                  Belum ada check-in hari ini
                 </Text>
-                <Text style={styles.activityTime}>{i * 5} mins ago</Text>
+                <Text style={styles.activityTime}>—</Text>
               </View>
-              <History size={16} color="#4B5563" />
             </View>
-          ))}
+          )}
         </View>
       </View>
 
       {/* Gym Switcher (Owner only) */}
       {admin?.role === 'owner' && gyms.length > 1 && (
         <View style={styles.gymSwitcher}>
-          <Text style={styles.sectionTitle}>Switch Gym</Text>
+          <Text style={[styles.sectionTitle, styles.switherTitle]}>
+            Switch Gym
+          </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -276,16 +361,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     fontWeight: '500',
-  },
-  logoutBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1A1A1A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -354,13 +429,13 @@ const styles = StyleSheet.create({
   actionIconAdd: { backgroundColor: '#C8F000' },
   actionIconRenew: { backgroundColor: '#2C2C2C' },
   actionLabel: { color: '#fff', fontSize: 12, fontWeight: '600' },
-
   activityList: {
     backgroundColor: '#111',
     borderRadius: 20,
     padding: 4,
     borderWidth: 1,
     borderColor: '#222',
+    marginTop: 16,
   },
   activityItem: {
     flexDirection: 'row',
@@ -376,10 +451,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#C8F000',
   },
+  activityDotEmpty: { backgroundColor: '#374151' },
   activityInfo: { flex: 1 },
   activityTitle: { color: '#D1D5DB', fontSize: 13, fontWeight: '500' },
   activityTime: { color: '#6B7280', fontSize: 11, marginTop: 2 },
   gymSwitcher: { marginTop: 32 },
+  switherTitle: { paddingHorizontal: 20 },
   chipScroll: { marginTop: 12, paddingLeft: 20 },
   gymChip: {
     paddingHorizontal: 20,
