@@ -1,46 +1,129 @@
-# Project Architecture
+# Project Architecture — Flutter Edition
 
-This document describes the architectural design and technical patterns used in the FitFlow Admin Mobile project.
+This document describes the architectural design and technical patterns used in the FitFlow Admin Flutter project.
 
 ## 📂 Folder Structure
 
-```text
-src/
-├── api/          # Axios client, endpoints, and interceptors
-├── components/   # Shared UI components
-├── navigation/   # Navigation configuration (Main and Sub-navigators)
-├── screens/      # Page-level components organized by feature
-├── store/        # Redux Toolkit slices, hooks, and persistence
-└── utils/        # Helper functions (formatting, date handling, etc.)
+```
+lib/
+├── main.dart                            # Entry point, ProviderScope, locale setup
+├── core/
+│   ├── network/
+│   │   └── api_client.dart              # Dio + auth interceptor + secureStorageProvider
+│   ├── router/
+│   │   └── app_router.dart              # go_router config, auth redirect guard, all routes
+│   └── theme/
+│       └── app_theme.dart               # AppColors constants + ThemeData (dark)
+├── data/
+│   ├── models/
+│   │   └── models.dart                  # AdminInfo, Member, Product, DashboardStats, etc.
+│   └── repositories/
+│       └── api_repository.dart          # All API calls via Dio, one method per endpoint
+├── features/
+│   ├── auth/
+│   │   ├── providers/
+│   │   │   └── auth_provider.dart       # AsyncNotifier — login, logout, session restore
+│   │   └── screens/
+│   │       ├── splash_screen.dart
+│   │       └── login_screen.dart
+│   ├── dashboard/
+│   │   └── screens/
+│   │       └── dashboard_screen.dart    # Stats grid + recent check-ins list
+│   ├── checkin/
+│   │   └── screens/
+│   │       └── checkin_screen.dart      # QR scanner via mobile_scanner
+│   ├── members/
+│   │   └── screens/
+│   │       ├── members_screen.dart      # List + search + status filter
+│   │       ├── member_detail_screen.dart
+│   │       ├── add_member_screen.dart
+│   │       ├── edit_member_screen.dart
+│   │       ├── renew_member_screen.dart
+│   │       └── import_member_screen.dart
+│   ├── store/
+│   │   └── screens/
+│   │       ├── store_screen.dart        # Product grid with delete confirm dialog
+│   │       └── add_edit_product_screen.dart
+│   └── profile/
+│       └── screens/
+│           └── profile_screen.dart      # Admin info + logout
+└── shared/
+    ├── utils/
+    │   └── format.dart                  # formatCurrency, formatDate, formatTime
+    └── widgets/
+        └── main_shell.dart              # Bottom tab bar shell (ShellRoute)
 ```
 
 ## 🗺 Navigation Flow
 
-The app uses `React Navigation v7` for its navigation system:
+Uses **go_router** with an auth redirect guard. Unauthenticated users are always
+sent to `/login`; authenticated users are redirected away from auth screens to `/dashboard`.
 
-- **Main Navigator**: A Bottom Tab Navigator containing:
-  - **Dashboard**: High-level stats.
-  - **CheckIn**: Camera scanner for QR check-ins.
-  - **Members**: Nested Stack Navigator for member flows.
-- **Members Stack**:
-  - `MembersList` -> `MemberDetail` -> `AddMember` / `RenewMember`.
+```
+/              → SplashScreen      (redirect hub — loading spinner while auth restores)
+/login         → LoginScreen
+/dashboard  ─┐
+/checkin      │  ShellRoute → MainShell (bottom tab bar)
+/members      │
+/store        │
+/profile    ─┘
+/members/add           → AddMemberScreen      (full screen, outside shell)
+/members/import        → ImportMemberScreen
+/members/:id           → MemberDetailScreen
+/members/:id/edit      → EditMemberScreen
+/members/:id/renew     → RenewMemberScreen
+/store/add             → AddEditProductScreen
+/store/:id/edit        → AddEditProductScreen  (edit mode)
+```
 
 ## 💾 State Management
 
-We use **Redux Toolkit** for global state management with **Redux Persist** for local storage:
+**Riverpod** replaces Redux Toolkit + redux-persist:
 
-- **Auth Slice**: Manages the authentication token, user information, and error states.
-- **Persistence**: Auth state is persisted using `AsyncStorage` to keep users logged in.
-- **Hooks**: Custom `useAppDispatch` and `useAppSelector` are exported for better typing.
+| React Native (RN)               | Flutter equivalent                              |
+|---------------------------------|-------------------------------------------------|
+| `createSlice` + thunks          | `AsyncNotifier` (`AuthNotifier`)                |
+| `useAppSelector(state => ...)` | `ref.watch(provider)`                           |
+| `useAppDispatch(action())`     | `ref.read(provider.notifier).method()`          |
+| redux-persist (AsyncStorage)    | `flutter_secure_storage` (token only)           |
+| RTK `createAsyncThunk`         | `FutureProvider.autoDispose` per screen         |
+| RTK `createEntityAdapter`      | `FutureProvider.autoDispose.family` (per id)    |
 
 ## 📡 API Layer
 
-The API layer is built on **Axios** with a modular design:
+**Dio** replaces Axios:
 
-- **Client (`api/client.ts`)**: Base configuration, including `baseURL` and interceptors (e.g., adding `Authorization` header).
-- **Endpoints (`api/endpoints.ts`)**: Centralized repository of all API calls, categorized by feature (Auth, Dashboard, Members, etc.).
+- `api_client.dart` — Base URL from `.env` via `flutter_dotenv`; `InterceptorsWrapper`
+  reads the token from `flutter_secure_storage` and injects `Authorization: Bearer <token>`
+  on every request automatically.
+- `api_repository.dart` — Single class with one method per endpoint, mirroring `endpoints.ts`.
+  Injected via `apiRepositoryProvider`.
 
-## 🎨 Styling
+## 🎨 Theme
 
-- **Theme**: Consistent dark theme (`#1E1E1E` background) with FitFlow green (`#C8F000`) accents.
-- **Patterns**: Standard `StyleSheet` usage with local styles for components and screens.
+Same visual identity as the original React Native version:
+
+| Token         | Value                  |
+|---------------|------------------------|
+| Background    | `#111111`              |
+| Card          | `#262626`              |
+| Accent        | `#C8F000` (FitFlow green) |
+| Tab bar bg    | `#161616`              |
+| Text primary  | `#FFFFFF`              |
+| Text muted    | `#6B7280`              |
+| Error         | `#EF4444`              |
+| Success       | `#22C55E`              |
+
+## 🔄 React Native → Flutter Migration Map
+
+| React Native                        | Flutter                               |
+|-------------------------------------|---------------------------------------|
+| React Navigation Stack              | go_router (path-based routes)         |
+| React Navigation Bottom Tabs        | go_router ShellRoute + BottomNavigationBar |
+| Redux Toolkit slices                | Riverpod AsyncNotifier / StateNotifier |
+| Axios + interceptors                | Dio + InterceptorsWrapper             |
+| AsyncStorage                        | flutter_secure_storage                |
+| react-native-vision-camera          | mobile_scanner                        |
+| react-native-config (.env)          | flutter_dotenv                        |
+| StyleSheet                          | ThemeData + BoxDecoration             |
+| lucide-react-native                 | Material Icons (built-in)             |
