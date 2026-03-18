@@ -21,7 +21,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   List<Member> _members = [];
   bool _searching = false;
   bool _isScanning = false;
-  Map<int, bool> _checkingIn = {};
+  final Map<int, bool> _checkingIn = {};
 
   @override
   void dispose() {
@@ -303,7 +303,7 @@ class _ScanTab extends StatelessWidget {
       ),
       Positioned.fill(child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         const SizedBox(height: 270),
-        Text('Arahkan QR Code ke dalam kotak', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+        const Text('Arahkan QR Code ke dalam kotak', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
         if (isScanning) ...[const SizedBox(height: 12), const CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)],
       ]))),
       // Torch toggle

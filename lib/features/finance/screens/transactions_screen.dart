@@ -39,7 +39,7 @@ class TransactionsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
         error: (e, _) => _ErrorWidget(e.toString()),
         data: (list) {
-          if (list.isEmpty) return _EmptyWidget('No transactions yet.');
+          if (list.isEmpty) return const _EmptyWidget('No transactions yet.');
           return RefreshIndicator(
             color: AppColors.accent,
             backgroundColor: AppColors.card,

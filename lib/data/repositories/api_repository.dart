@@ -132,9 +132,13 @@ class ApiRepository {
     final res = await _ref.read(dioProvider).get('/admin/check-ins', queryParameters: {'gymId': gymId, 'limit': limit});
     final data = res.data;
     List<dynamic> list;
-    if (data is List) list = data;
-    else if (data is Map) list = data['data'] as List<dynamic>? ?? data['checkIns'] as List<dynamic>? ?? [];
-    else list = [];
+    if (data is List) {
+      list = data;
+    } else if (data is Map) {
+      list = data['data'] as List<dynamic>? ?? data['checkIns'] as List<dynamic>? ?? [];
+    } else {
+      list = [];
+    }
     return list.map((e) => CheckInRecord.fromJson(e as Map<String, dynamic>)).toList();
   }
 

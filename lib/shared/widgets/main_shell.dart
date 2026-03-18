@@ -23,7 +23,7 @@ class MainShell extends StatelessWidget {
                   width: 280,
                   child: AppDrawerContent(isSidebar: true),
                 ),
-                VerticalDivider(width: 1, color: AppColors.border),
+                const VerticalDivider(width: 1, color: AppColors.border),
                 Expanded(child: child),
               ],
             ),

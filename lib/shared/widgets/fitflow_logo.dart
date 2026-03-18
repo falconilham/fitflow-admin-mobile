@@ -25,8 +25,8 @@ class FitFlowLogo extends StatelessWidget {
               letterSpacing: -1.0,
               fontFamily: 'Inter',
             ),
-            children: [
-              const TextSpan(
+            children: const [
+              TextSpan(
                 text: 'FIT',
                 style: TextStyle(color: Colors.white),
               ),

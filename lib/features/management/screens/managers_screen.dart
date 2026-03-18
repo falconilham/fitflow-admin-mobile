@@ -202,7 +202,7 @@ class _ManagersScreenState extends ConsumerState<ManagersScreen> {
         await ref.read(apiRepositoryProvider).createManager(gymId, data);
       }
       ref.invalidate(_managersProvider);
-      if (mounted) Navigator.pop(ctx);
+      if (ctx.mounted) Navigator.pop(ctx);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {

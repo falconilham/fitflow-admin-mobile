@@ -135,7 +135,7 @@ class _TrainersScreenState extends ConsumerState<TrainersScreen> {
         await ref.read(apiRepositoryProvider).createTrainer(gymId, data);
       }
       ref.invalidate(_trainersProvider);
-      if (mounted) Navigator.pop(ctx);
+      if (ctx.mounted) Navigator.pop(ctx);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {

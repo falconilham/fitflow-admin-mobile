@@ -184,7 +184,7 @@ class _PeakHoursChart extends StatelessWidget {
               return Padding(
                 padding: EdgeInsets.only(right: i < hourCounts.length - 1 ? barSpacing : 0),
                 child: Tooltip(
-                  message: '${i}:00 — $count visits',
+                  message: '$i:00 — $count visits',
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 300 + i * 10),
                     curve: Curves.easeOut,

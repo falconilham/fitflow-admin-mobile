@@ -134,14 +134,17 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
         error: (e, _) => Center(child: Text(e.toString(), style: const TextStyle(color: AppColors.error))),
         data: (list) {
-          if (list.isEmpty) return RefreshIndicator(
-            color: AppColors.accent, backgroundColor: AppColors.card,
-            onRefresh: () async => ref.invalidate(_expensesProvider),
-            child: ListView(children: [
-              const SizedBox(height: 200),
-              const Center(child: Text('No expenses yet.', style: TextStyle(color: AppColors.textMuted))),
-            ]),
-          );
+          if (list.isEmpty) {
+            return RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: AppColors.card,
+              onRefresh: () async => ref.invalidate(_expensesProvider),
+              child: ListView(children: const [
+                SizedBox(height: 200),
+                Center(child: Text('No expenses yet.', style: TextStyle(color: AppColors.textMuted))),
+              ]),
+            );
+          }
 
           final total = list.fold<double>(0, (sum, e) => sum + ((e['amount'] as num?) ?? 0).toDouble());
 

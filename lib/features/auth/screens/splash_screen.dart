@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../auth/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -38,14 +35,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   fontWeight: FontWeight.w900,
                   letterSpacing: -2.5,
                 ),
-                children: [
-                  const TextSpan(
+                children: const [
+                  TextSpan(
                     text: 'FIT',
                     style: TextStyle(color: Colors.white),
                   ),
                   TextSpan(
                     text: 'FLOW.ID',
-                    style: const TextStyle(color: AppColors.accent),
+                    style: TextStyle(color: AppColors.accent),
                   ),
                 ],
               ),

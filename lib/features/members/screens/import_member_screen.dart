@@ -37,7 +37,9 @@ class _ImportMemberScreenState extends ConsumerState<ImportMemberScreen> {
 
   @override
   void dispose() {
-    for (final c in [_memberIdCtrl, _nameCtrl, _emailCtrl, _phoneCtrl, _addressCtrl, _joinDateCtrl, _endDateCtrl]) c.dispose();
+    for (final c in [_memberIdCtrl, _nameCtrl, _emailCtrl, _phoneCtrl, _addressCtrl, _joinDateCtrl, _endDateCtrl]) {
+      c.dispose();
+    }
     super.dispose();
   }
 

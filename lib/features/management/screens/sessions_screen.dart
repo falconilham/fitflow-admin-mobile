@@ -152,7 +152,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> with SingleTick
             OutlinedButton.icon(
               onPressed: () async {
                 final date = await showDatePicker(context: context, initialDate: _scheduledAt ?? DateTime.now(), firstDate: DateTime.now().subtract(const Duration(days: 365)), lastDate: DateTime.now().add(const Duration(days: 365)));
-                if (date == null) return;
+                if (date == null || !mounted) return;
+                if (!context.mounted) return;
                 final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
                 if (time == null) return;
                 setMState(() => _scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute));
@@ -236,7 +237,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> with SingleTick
         await ref.read(apiRepositoryProvider).createSession(data);
       }
       ref.invalidate(_sessionsProvider);
-      if (mounted) Navigator.pop(ctx);
+      if (ctx.mounted) Navigator.pop(ctx);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
@@ -442,7 +443,7 @@ class _DropdownField<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       dropdownColor: AppColors.surface,
       decoration: InputDecoration(
         labelText: label, labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),

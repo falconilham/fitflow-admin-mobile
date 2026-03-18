@@ -233,7 +233,7 @@ class _GymSettingsScreenState extends ConsumerState<GymSettingsScreen> with Sing
           title: const Text('Require Member ID', style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
           subtitle: const Text('Ensure every member has a unique ID', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
           value: _requireMemberId,
-          activeColor: AppColors.accent,
+          activeThumbColor: AppColors.accent,
           onChanged: (v) => setState(() => _requireMemberId = v),
         ),
         if (_requireMemberId) ...[
@@ -244,7 +244,7 @@ class _GymSettingsScreenState extends ConsumerState<GymSettingsScreen> with Sing
         const Text('Mandatory Contact Info', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _mandatoryContact,
+          initialValue: _mandatoryContact,
           dropdownColor: AppColors.surface,
           style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
@@ -307,7 +307,7 @@ class _GymSettingsScreenState extends ConsumerState<GymSettingsScreen> with Sing
               child: ColorPicker(
                 pickerColor: color,
                 onColorChanged: (newColor) {
-                  onColorChanged('#${newColor.value.toRadixString(16).substring(2)}');
+                  onColorChanged('#${newColor.toARGB32().toRadixString(16).substring(2)}');
                 },
               ),
             ),
