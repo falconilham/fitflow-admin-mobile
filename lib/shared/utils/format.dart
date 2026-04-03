@@ -31,5 +31,6 @@ String formatDateTime(String? isoString) {
   }
 }
 
-String formatPrice(int price) => price.toString().replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+String formatPrice(int price) {
+  return NumberFormat.decimalPattern('id_ID').format(price);
+}

@@ -22,13 +22,22 @@ class ApiRepository {
   // Dashboard
   Future<DashboardStats> getStats(int gymId) async {
     final res = await _ref.read(dioProvider).get('/admin/stats', queryParameters: {'gymId': gymId});
-    return DashboardStats.fromJson(res.data as Map<String, dynamic>);
+    final data = res.data as Map<String, dynamic>;
+    // Handle both 'expenses' and 'totalExpenses' from backend
+    final expenses = (data['expenses'] ?? data['totalExpenses'] ?? 0) as num;
+    return DashboardStats(
+      totalMembers: (data['totalMembers'] ?? 0) as int,
+      activeMembers: (data['activeMembers'] ?? 0) as int,
+      dailyCheckIns: (data['dailyCheckIns'] ?? 0) as int,
+      expenses: expenses.toDouble(),
+    );
   }
 
   Future<List<GymSimple>> getMyGyms() async {
     final res = await _ref.read(dioProvider).get('/admin/my-gyms');
-    final list = res.data as List<dynamic>;
-    return list.map((e) => GymSimple.fromJson(e as Map<String, dynamic>)).toList();
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => GymSimple.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   // Members — parses multiple response shapes
@@ -118,13 +127,16 @@ class ApiRepository {
   // Packages
   Future<List<MembershipPackage>> getPackages(int gymId) async {
     final res = await _ref.read(dioProvider).get('/admin/membership-packages', queryParameters: {'gymId': gymId});
-    return (res.data as List<dynamic>).map((e) => MembershipPackage.fromJson(e as Map<String, dynamic>)).toList();
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => MembershipPackage.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   // Check-in — QR payload is JSON {userId, gymId, membershipId}
   Future<Map<String, dynamic>> checkInByQr(int gymId, int userId, int membershipId) async {
     final res = await _ref.read(dioProvider).post('/admin/check-in',
         data: {'gymId': gymId, 'userId': userId, 'membershipId': membershipId});
+    if (res.data is! Map) return {'success': false, 'message': 'Invalid server response'};
     return res.data as Map<String, dynamic>;
   }
 

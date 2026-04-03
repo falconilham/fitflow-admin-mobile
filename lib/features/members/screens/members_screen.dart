@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +29,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
   bool _hasMore = true;
   int _page = 1;
   bool _fetching = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -38,6 +40,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -68,7 +71,16 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
   }
 
   void _refresh() { setState(() { _loading = true; _page = 1; _members = []; _hasMore = true; }); _load(reset: true); }
-  void _onSearchChanged(String v) { ref.read(memberSearchProvider.notifier).state = v; _refresh(); }
+  
+  void _onSearchChanged(String v) {
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      ref.read(memberSearchProvider.notifier).state = v;
+      _refresh();
+    });
+    setState(() {}); // For clear button visibility
+  }
+  
   void _onStatusChanged(String s) { ref.read(memberStatusFilterProvider.notifier).state = s; _refresh(); }
 
   @override
