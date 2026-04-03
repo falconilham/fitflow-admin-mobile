@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
@@ -14,7 +15,7 @@ class CheckInScreen extends ConsumerStatefulWidget {
   ConsumerState<CheckInScreen> createState() => _CheckInScreenState();
 }
 
-class _CheckInScreenState extends ConsumerState<CheckInScreen> {
+class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindingObserver {
   final _searchCtrl = TextEditingController();
   final _cameraCtrl = MobileScannerController();
   String _tab = 'manual'; // 'manual' | 'scan'
@@ -24,11 +25,27 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   final Map<int, bool> _checkingIn = {};
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchCtrl.dispose();
     _cameraCtrl.stop();
     _cameraCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _cameraCtrl.stop();
+    } else if (state == AppLifecycleState.resumed && _tab == 'scan') {
+      _cameraCtrl.start();
+    }
   }
 
   Future<void> _search() async {
@@ -177,7 +194,17 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           searchCtrl: _searchCtrl, members: _members, searching: _searching,
           checkingIn: _checkingIn, onSearch: _search, onCheckIn: _checkInManual,
         ))
-        else Expanded(child: _ScanTab(controller: _cameraCtrl, onDetect: _handleQr, isScanning: _isScanning)),
+        else Expanded(child: VisibilityDetector(
+          key: const Key('checkin_scanner_visibility'),
+          onVisibilityChanged: (info) {
+            if (info.visibleFraction == 0 && mounted) {
+              _cameraCtrl.stop();
+            } else if (info.visibleFraction > 0 && mounted && _tab == 'scan') {
+              _cameraCtrl.start();
+            }
+          },
+          child: _ScanTab(controller: _cameraCtrl, onDetect: _handleQr, isScanning: _isScanning),
+        )),
       ])),
     );
   }
