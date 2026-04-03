@@ -59,6 +59,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> with SingleTick
   int _duration = 60;
   double _price = 0;
   String _paymentMethod = 'Cash';
+  String _bookingType = 'single'; // 'single' or 'package'
+  int? _selectedPackageId; // Existing package ID
+  int _packageSessions = 3; // For new package
+  List<Map<String, dynamic>> _availablePackages = [];
   final _notesCtrl = TextEditingController();
 
   @override
@@ -86,6 +90,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> with SingleTick
       _price = ((session['price'] ?? 0) as num).toDouble();
       _paymentMethod = (session['paymentMethod'] ?? session['payment_method'] ?? 'Cash').toString();
       _notesCtrl.text = (session['notes'] ?? '').toString();
+      _selectedPackageId = (session['trainerPackageId'] ?? session['trainer_package_id']) as int?;
+      _bookingType = (_selectedPackageId != null || _paymentMethod == 'Package') ? 'package' : 'single';
     } else {
       _editingId = null;
       _selectedMemberId = null;
@@ -95,6 +101,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> with SingleTick
       _duration = 60;
       _price = 0;
       _paymentMethod = 'Cash';
+      _bookingType = 'single';
+      _selectedPackageId = null;
+      _availablePackages = [];
       _notesCtrl.clear();
     }
 
@@ -129,7 +138,15 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> with SingleTick
               label: 'Member',
               value: _selectedMemberId,
               items: {for (var m in members) (m['id'] as num).toInt(): (m['name'] ?? 'Member').toString()},
-              onChanged: (v) => setMState(() => _selectedMemberId = v),
+              onChanged: (v) async {
+                setMState(() {
+                  _selectedMemberId = v;
+                });
+                if (v != null && _selectedTrainerId != null) {
+                  final pkgs = await ref.read(apiRepositoryProvider).getTrainerPackages(ref.read(authProvider).valueOrNull?.activeGymId ?? 0, memberId: v, trainerId: _selectedTrainerId, status: 'active');
+                  setMState(() => _availablePackages = pkgs);
+                }
+              },
             ),
             const SizedBox(height: 10),
 
@@ -138,15 +155,75 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> with SingleTick
               label: 'Trainer',
               value: _selectedTrainerId,
               items: {for (var t in trainers) (t['id'] as num).toInt(): '${t['name'] ?? 'Trainer'} - ${t['specialty'] ?? ''}'},
-              onChanged: (v) {
+              onChanged: (v) async {
                 setMState(() {
                   _selectedTrainerId = v;
                   final tr = trainers.firstWhere((t) => (t['id'] as num).toInt() == v, orElse: () => {});
                   _price = ((tr['singleSessionPrice'] ?? tr['single_session_price'] ?? 0) as num).toDouble();
                 });
+                if (_selectedMemberId != null && v != null) {
+                  final pkgs = await ref.read(apiRepositoryProvider).getTrainerPackages(gymId, memberId: _selectedMemberId, trainerId: v, status: 'active');
+                  setMState(() => _availablePackages = pkgs);
+                }
               },
             ),
             const SizedBox(height: 10),
+
+            // Booking Type Toggle
+            Row(children: [
+              Expanded(child: ChoiceChip(
+                label: const Text('Single Visit'),
+                selected: _bookingType == 'single',
+                onSelected: (s) => setMState(() {
+                  _bookingType = 'single';
+                  _paymentMethod = 'Cash';
+                  final tr = trainers.firstWhere((t) => (t['id'] as num).toInt() == _selectedTrainerId, orElse: () => {});
+                  _price = ((tr['singleSessionPrice'] ?? tr['single_session_price'] ?? 0) as num).toDouble();
+                }),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: ChoiceChip(
+                label: const Text('Package'),
+                selected: _bookingType == 'package',
+                onSelected: (s) => setMState(() {
+                  _bookingType = 'package';
+                  _paymentMethod = 'Package';
+                  _price = 0; // Total price will be set by tier
+                }),
+              )),
+            ]),
+            const SizedBox(height: 10),
+
+            if (_bookingType == 'package') ...[
+              // Existing Package Dropdown
+              _DropdownField<int?>(
+                label: _availablePackages.isEmpty ? 'No active packages' : 'Select Active Package',
+                value: _selectedPackageId,
+                items: {for (var p in _availablePackages) (p['id'] as num).toInt(): '${p['packageName'] ?? 'Package'} (${(p['totalSessions'] ?? 0) - (p['usedSessions'] ?? 0)} left)'},
+                onChanged: (v) => setMState(() {
+                  _selectedPackageId = v;
+                  _price = 0; // Existing package means already paid
+                }),
+              ),
+              const SizedBox(height: 10),
+
+              if (_selectedPackageId == null) ...[
+                const Text('Buy New Package', style: TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Wrap(spacing: 8, children: [3, 5, 10].map((s) {
+                  final p = s == 3 ? 1000000 : (s == 5 ? 1500000 : 2500000);
+                  return ChoiceChip(
+                    label: Text('$s sess @ ${formatCurrency(p.toDouble())}'),
+                    selected: _packageSessions == s,
+                    onSelected: (sel) => setMState(() {
+                      _packageSessions = s;
+                      _price = p.toDouble();
+                    }),
+                  );
+                }).toList()),
+                const SizedBox(height: 10),
+              ],
+            ],
 
             // Date/time picker button
             OutlinedButton.icon(
@@ -230,6 +307,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> with SingleTick
         'paymentMethod': _paymentMethod,
         'status': _status,
         'notes': _notesCtrl.text.trim(),
+        if (_bookingType == 'package') ...{
+           'trainerPackageId': _selectedPackageId?.toString() ?? 'new-pending',
+           if (_selectedPackageId == null) 'packageTotalSessions': _packageSessions,
+        }
       };
       if (_editingId != null) {
         await ref.read(apiRepositoryProvider).updateSession(_editingId!, data);

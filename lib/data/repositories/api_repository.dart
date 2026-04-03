@@ -254,10 +254,23 @@ class ApiRepository {
   }
 
   Future<List<Map<String, dynamic>>> getActivity(int gymId, {int limit = 50}) async {
-    final res = await _ref.read(dioProvider).get('/admin/check-ins', queryParameters: {'gymId': gymId, 'limit': limit});
+    final res = await _ref.read(dioProvider).get('/admin/activity-logs', queryParameters: {'gymId': gymId, 'limit': limit});
     final data = res.data;
     if (data is List) return data.cast<Map<String, dynamic>>();
-    if (data is Map) return (data['data'] as List? ?? data['checkIns'] as List? ?? []).cast<Map<String, dynamic>>();
+    if (data is Map) return (data['data'] as List? ?? data['activityLogs'] as List? ?? []).cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getTrainerPackages(int gymId, {int? memberId, int? trainerId, String? status}) async {
+    final res = await _ref.read(dioProvider).get('/admin/trainer-packages', queryParameters: {
+      'gymId': gymId,
+      if (memberId != null) 'memberId': memberId,
+      if (trainerId != null) 'trainerId': trainerId,
+      if (status != null) 'status': status,
+    });
+    final data = res.data;
+    if (data is List) return data.cast<Map<String, dynamic>>();
+    if (data is Map) return (data['data'] as List? ?? data['trainerPackages'] as List? ?? data['packages'] as List? ?? []).cast<Map<String, dynamic>>();
     return [];
   }
 

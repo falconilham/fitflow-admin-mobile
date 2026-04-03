@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,43 +59,86 @@ class ActivityScreen extends ConsumerWidget {
           return RefreshIndicator(
             color: AppColors.accent, backgroundColor: AppColors.card,
             onRefresh: () async => ref.invalidate(_activityProvider),
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: ListView.separated(
-                shrinkWrap: false,
-                padding: EdgeInsets.zero,
-                itemCount: list.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
-                itemBuilder: (_, i) {
-                  final a = list[i];
-                  final memberName = a['memberName'] ?? a['member_name'] ?? a['member']?['name'] ?? 'Unknown';
-                  final checkedIn = a['checkedInAt'] ?? a['checked_in_at'] ?? a['createdAt'] ?? a['created_at'];
-                  final type = a['type'] ?? a['checkInType'] ?? 'check-in';
-                  final dateStr = checkedIn != null ? formatDateTime(checkedIn.toString()) : '-';
-                  final initials = memberName.toString().split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join().toUpperCase();
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final a = list[i];
+                final action = a['action']?.toString() ?? 'CHECK_IN';
+                final detailsStr = a['details']?.toString() ?? '{}';
+                Map<String, dynamic> det = {};
+                try {
+                  det = jsonDecode(detailsStr) as Map<String, dynamic>;
+                } catch (_) {}
 
-                  return ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.accent.withAlpha(30),
-                      child: Text(initials, style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 12)),
-                    ),
-                    title: Text(memberName.toString(),
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: Text(dateStr, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: AppColors.accent.withAlpha(25), borderRadius: BorderRadius.circular(8)),
-                      child: Text(type.toString(), style: const TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w700)),
-                    ),
-                  );
-                },
-              ),
+                final timestamp = a['timestamp'] ?? a['createdAt'] ?? a['created_at'];
+                final dateStr = timestamp != null ? formatDateTime(timestamp.toString()) : '-';
+                
+                String title = action.replaceAll('_', ' ');
+                String subtitle = dateStr;
+                IconData icon = Icons.info_outline_rounded;
+                Color color = AppColors.accent;
+
+                // Action-specific logic
+                if (action == 'SESSION_CREATED') {
+                  title = 'New Session Booked';
+                  icon = Icons.event_available_rounded;
+                  color = const Color(0xFF60A5FA);
+                  final trainer = det['trainer'] ?? 'Trainer';
+                  final member = det['member'] ?? 'Member';
+                  subtitle = 'Trainer: $trainer with $member\n$dateStr';
+                } else if (action == 'SESSION_DELETED') {
+                  title = 'Session Deleted';
+                  icon = Icons.delete_forever_rounded;
+                  color = const Color(0xFFF87171);
+                  final trainer = det['trainer'] ?? 'Trainer';
+                  final member = det['member'] ?? 'Member';
+                  subtitle = 'Deleted: $trainer with $member\n$dateStr';
+                } else if (action == 'MEMBER_ADDED') {
+                  title = 'Member Added';
+                  icon = Icons.person_add_rounded;
+                  color = const Color(0xFF4ADE80);
+                  subtitle = 'Name: ${det['name'] ?? 'New Member'}\n$dateStr';
+                } else if (action == 'MEMBER_CHECK_IN') {
+                  title = 'Member Check-in';
+                  icon = Icons.login_rounded;
+                  color = AppColors.accent;
+                  subtitle = 'Member: ${det['name'] ?? 'Member'}\n$dateStr';
+                }
+
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: color.withAlpha(30),
+                        child: Icon(icon, color: color, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(title, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 14)),
+                            const SizedBox(height: 2),
+                            Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 12, height: 1.4)),
+                          ],
+                        ),
+                      ),
+                      if (a['adminName'] != null)
+                        Text(a['adminName'].toString(), style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                    ],
+                  ),
+                );
+              },
             ),
           );
         },
