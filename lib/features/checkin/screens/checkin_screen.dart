@@ -8,6 +8,7 @@ import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../shared/utils/error_handler.dart';
 
 class CheckInScreen extends ConsumerStatefulWidget {
   const CheckInScreen({super.key});
@@ -81,7 +82,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
       
       if (mounted) _showResult(isGranted, isCheckout, name, message);
     } catch (e) {
-      final errMsg = e.toString().contains('response') ? 'Check-in gagal' : e.toString();
+      final errMsg = ErrorHandler.parse(e);
       if (mounted) _showResult(false, false, member.name, errMsg);
     } finally {
       if (mounted) setState(() => _checkingIn.remove(member.id));
@@ -112,7 +113,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
       
       if (mounted) _showResult(isGranted, isCheckout, name, message);
     } catch (e) {
-      if (mounted) _showResult(false, false, '', e.toString());
+      if (mounted) _showResult(false, false, '', ErrorHandler.parse(e));
     } finally {
       if (mounted) setState(() => _isScanning = false);
     }
@@ -142,7 +143,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         title: Text(
           granted ? (checkout ? '✅ Check-out Berhasil' : '✅ Check-in Berhasil') : '❌ Ditolak',
@@ -152,8 +153,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              if (_tab == 'scan') _cameraCtrl.start(); // Restart camera when closing dialog IF still in scan tab
+              Navigator.pop(ctx);
+              if (mounted && _tab == 'scan') {
+                _cameraCtrl.start();
+              }
             },
             child: const Text('OK'),
           )
@@ -311,33 +314,221 @@ class _ManualTab extends StatelessWidget {
 // ── QR Scan tab ──────────────────────────────────────────────────────────────
 
 class _ScanTab extends StatelessWidget {
-  const _ScanTab({required this.controller, required this.onDetect, required this.isScanning});
+  const _ScanTab(
+      {required this.controller,
+      required this.onDetect,
+      required this.isScanning});
   final MobileScannerController controller;
   final void Function(BarcodeCapture) onDetect;
   final bool isScanning;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(children: [
-      MobileScanner(controller: controller, onDetect: onDetect),
-      // Dark overlay with scan box
-      ColorFiltered(
-        colorFilter: ColorFilter.mode(Colors.black.withAlpha(127), BlendMode.srcOut),
-        child: Stack(children: [
-          Container(decoration: const BoxDecoration(color: Colors.black, backgroundBlendMode: BlendMode.dstOut)),
-          Center(child: Container(width: 250, height: 250, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)))),
-        ]),
-      ),
-      Positioned.fill(child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const SizedBox(height: 270),
-        const Text('Arahkan QR Code ke dalam kotak', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-        if (isScanning) ...[const SizedBox(height: 12), const CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)],
-      ]))),
-      // Torch toggle
-      Positioned(top: 16, right: 16, child: IconButton(
-        icon: const Icon(Icons.flash_on_rounded, color: Colors.white),
-        onPressed: () => controller.toggleTorch(),
-      )),
-    ]);
+    const boxSize = 250.0;
+    const radius = 16.0;
+
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        final cutout = Rect.fromCenter(
+          center: Offset(w / 2, h / 2),
+          width: boxSize,
+          height: boxSize,
+        );
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // Camera feed
+            MobileScanner(controller: controller, onDetect: onDetect),
+
+            // Dim overlay with see-through cutout (CustomPaint — reliable on Impeller)
+            IgnorePointer(
+              child: CustomPaint(
+                size: Size(w, h),
+                painter: _ScannerOverlayPainter(
+                  cutout: cutout,
+                  borderRadius: radius,
+                  overlayColor: Colors.black.withAlpha(140),
+                ),
+              ),
+            ),
+
+            // Corner brackets around the cutout for visual affordance
+            Positioned(
+              left: cutout.left,
+              top: cutout.top,
+              width: cutout.width,
+              height: cutout.height,
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _CornerBracketPainter(
+                    color: AppColors.accent,
+                    radius: radius,
+                  ),
+                ),
+              ),
+            ),
+
+            // Caption + spinner under the cutout
+            Positioned(
+              left: 0,
+              right: 0,
+              top: cutout.bottom + 20,
+              child: IgnorePointer(
+                child: Column(
+                  children: [
+                    const Text(
+                      'Arahkan QR Code ke dalam kotak',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (isScanning) ...[
+                      const SizedBox(height: 12),
+                      const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: AppColors.accent, strokeWidth: 2.5),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            // Torch toggle
+            Positioned(
+              top: 16,
+              right: 16,
+              child: ValueListenableBuilder<MobileScannerState>(
+                valueListenable: controller,
+                builder: (_, state, __) {
+                  final torchOn = state.torchState == TorchState.on;
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(120),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        torchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                        color: torchOn ? AppColors.accent : Colors.white,
+                      ),
+                      onPressed: () => controller.toggleTorch(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
+}
+
+class _ScannerOverlayPainter extends CustomPainter {
+  final Rect cutout;
+  final double borderRadius;
+  final Color overlayColor;
+
+  _ScannerOverlayPainter({
+    required this.cutout,
+    required this.borderRadius,
+    required this.overlayColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addRRect(
+        RRect.fromRectAndRadius(cutout, Radius.circular(borderRadius)),
+      );
+    final paint = Paint()..color = overlayColor;
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScannerOverlayPainter old) =>
+      old.cutout != cutout ||
+      old.borderRadius != borderRadius ||
+      old.overlayColor != overlayColor;
+}
+
+class _CornerBracketPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+  _CornerBracketPainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    const armLen = 28.0;
+
+    // Top-left
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, armLen + radius)
+        ..lineTo(0, radius)
+        ..arcToPoint(
+          Offset(radius, 0),
+          radius: Radius.circular(radius),
+        )
+        ..lineTo(armLen + radius, 0),
+      paint,
+    );
+    // Top-right
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width - armLen - radius, 0)
+        ..lineTo(size.width - radius, 0)
+        ..arcToPoint(
+          Offset(size.width, radius),
+          radius: Radius.circular(radius),
+        )
+        ..lineTo(size.width, armLen + radius),
+      paint,
+    );
+    // Bottom-right
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width, size.height - armLen - radius)
+        ..lineTo(size.width, size.height - radius)
+        ..arcToPoint(
+          Offset(size.width - radius, size.height),
+          radius: Radius.circular(radius),
+        )
+        ..lineTo(size.width - armLen - radius, size.height),
+      paint,
+    );
+    // Bottom-left
+    canvas.drawPath(
+      Path()
+        ..moveTo(armLen + radius, size.height)
+        ..lineTo(radius, size.height)
+        ..arcToPoint(
+          Offset(0, size.height - radius),
+          radius: Radius.circular(radius),
+        )
+        ..lineTo(0, size.height - armLen - radius),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CornerBracketPainter old) =>
+      old.color != color || old.radius != radius;
 }

@@ -7,6 +7,7 @@ import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../shared/utils/error_handler.dart';
 
 final gymSettingsProvider = FutureProvider.autoDispose<GymSettings>((ref) async {
   final gymId = ref.watch(authProvider).valueOrNull?.activeGymId;
@@ -113,7 +114,7 @@ class _GymSettingsScreenState extends ConsumerState<GymSettingsScreen> with Sing
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Error: ${ErrorHandler.parse(e)}'), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -176,7 +177,7 @@ class _GymSettingsScreenState extends ConsumerState<GymSettingsScreen> with Sing
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent)),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.error))),
+        error: (e, _) => Center(child: Text('Error: ${ErrorHandler.parse(e)}', style: const TextStyle(color: AppColors.error))),
       ),
     );
   }

@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "react-native-code-push": "^9.0.1"
+  }
+}

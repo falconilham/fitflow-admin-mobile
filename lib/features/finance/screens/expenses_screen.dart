@@ -7,6 +7,7 @@ import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/utils/format.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../shared/utils/error_handler.dart';
 
 final _expensesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final gymId = ref.watch(authProvider).valueOrNull?.activeGymId;
@@ -57,7 +58,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       ref.invalidate(_expensesProvider);
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e))));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -132,7 +133,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       ),
       body: expAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
-        error: (e, _) => Center(child: Text(e.toString(), style: const TextStyle(color: AppColors.error))),
+        error: (e, _) => Center(child: Text(ErrorHandler.parse(e), style: const TextStyle(color: AppColors.error))),
         data: (list) {
           if (list.isEmpty) {
             return RefreshIndicator(

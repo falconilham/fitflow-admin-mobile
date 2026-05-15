@@ -111,7 +111,8 @@ class AppDrawerContent extends ConsumerWidget {
                 icon: Icons.auto_graph_rounded,
                 initiallyExpanded: location.contains(AppRoutes.checkin) || 
                                    location.contains(AppRoutes.members) || 
-                                   location.contains(AppRoutes.sessions),
+                                   location.contains(AppRoutes.sessions) ||
+                                   location.contains(AppRoutes.leaderboard),
                 children: [
                   _DrawerItem(
                     icon: Icons.qr_code_scanner_rounded,
@@ -131,6 +132,13 @@ class AppDrawerContent extends ConsumerWidget {
                     icon: Icons.calendar_today_rounded,
                     title: 'Sessions',
                     route: AppRoutes.sessions,
+                    isSubItem: true,
+                    isSidebar: isSidebar,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.emoji_events_rounded,
+                    title: 'Leaderboard',
+                    route: AppRoutes.leaderboard,
                     isSubItem: true,
                     isSidebar: isSidebar,
                   ),
@@ -178,7 +186,7 @@ class AppDrawerContent extends ConsumerWidget {
                 children: [
                   _DrawerItem(
                     icon: Icons.point_of_sale_rounded,
-                    title: 'Point of Sale',
+                    title: 'POS',
                     route: AppRoutes.pos,
                     isSubItem: true,
                     isSidebar: isSidebar,
@@ -197,14 +205,14 @@ class AppDrawerContent extends ConsumerWidget {
               _DrawerSection(
                 title: 'Management',
                 icon: Icons.settings_rounded,
-                initiallyExpanded: location.contains(AppRoutes.managers) || 
-                                   location.contains(AppRoutes.trainers) || 
-                                   location.contains(AppRoutes.reports) || 
+                initiallyExpanded: location.contains(AppRoutes.managers) ||
+                                   location.contains(AppRoutes.trainers) ||
+                                   location.contains(AppRoutes.reports) ||
                                    location.contains(AppRoutes.activity),
                 children: [
                   _DrawerItem(
                     icon: Icons.admin_panel_settings_rounded,
-                    title: 'Admin',
+                    title: 'Managers',
                     route: AppRoutes.managers,
                     isSubItem: true,
                     isSidebar: isSidebar,
@@ -218,7 +226,7 @@ class AppDrawerContent extends ConsumerWidget {
                   ),
                   _DrawerItem(
                     icon: Icons.fitness_center_rounded,
-                    title: 'Gym Equipment',
+                    title: 'Equipment',
                     placeholder: true,
                     isSubItem: true,
                     isSidebar: isSidebar,
@@ -232,15 +240,8 @@ class AppDrawerContent extends ConsumerWidget {
                   ),
                   _DrawerItem(
                     icon: Icons.history_rounded,
-                    title: 'Activity Logs',
+                    title: 'Activity',
                     route: AppRoutes.activity,
-                    isSubItem: true,
-                    isSidebar: isSidebar,
-                  ),
-                  _DrawerItem(
-                    icon: Icons.settings_applications_rounded,
-                    title: 'Gym Settings',
-                    route: AppRoutes.gymSettings,
                     isSubItem: true,
                     isSidebar: isSidebar,
                   ),
@@ -251,6 +252,12 @@ class AppDrawerContent extends ConsumerWidget {
 
               // ACCOUNT
               const _DrawerSectionHeader('ACCOUNT'),
+              _DrawerItem(
+                icon: Icons.settings_applications_rounded,
+                title: 'Gym Settings',
+                route: AppRoutes.gymSettings,
+                isSidebar: isSidebar,
+              ),
               _DrawerItem(
                 icon: Icons.person_rounded,
                 title: 'Profile Settings',

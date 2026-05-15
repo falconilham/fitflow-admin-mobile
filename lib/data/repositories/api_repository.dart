@@ -100,8 +100,41 @@ class ApiRepository {
     await _ref.read(dioProvider).put('/admin/members/$memberId', data: data);
   }
 
-  Future<void> deleteMember(int memberId) async {
-    await _ref.read(dioProvider).delete('/admin/members/$memberId');
+  Future<void> deleteMember(int memberId, {int? gymId}) async {
+    await _ref.read(dioProvider).delete('/admin/members/$memberId',
+        queryParameters: {if (gymId != null) 'gymId': gymId});
+  }
+
+  // Restore archived (soft-deleted) member — owner/super_admin only
+  Future<void> restoreMember(int memberId, {int? gymId}) async {
+    await _ref.read(dioProvider).post('/admin/members/$memberId/restore',
+        queryParameters: {if (gymId != null) 'gymId': gymId});
+  }
+
+  // Permanently delete a member and all related history — owner/super_admin only
+  Future<void> permanentDeleteMember(int memberId, {int? gymId}) async {
+    await _ref.read(dioProvider).delete(
+          '/admin/members/$memberId/permanent',
+          queryParameters: {if (gymId != null) 'gymId': gymId},
+        );
+  }
+
+  // Suspend / unsuspend member with optional reason + auto-reactivate date.
+  // endDate: 'YYYY-MM-DD' string or null
+  Future<void> suspendMember(
+    int memberId, {
+    required bool suspended,
+    String? reason,
+    String? endDate,
+  }) async {
+    await _ref.read(dioProvider).patch(
+      '/admin/members/$memberId/suspend',
+      data: {
+        'suspended': suspended,
+        if (suspended) 'reason': reason,
+        if (suspended && endDate != null) 'endDate': endDate,
+      },
+    );
   }
 
   Future<void> importMembers(int gymId, Map<String, dynamic> data) async {
@@ -292,6 +325,50 @@ class ApiRepository {
     return {};
   }
 
+  // Revenue endpoint with full filter support — returns combined tx + expenses
+  // shape: { summary, breakdown, pagination, transactions: [...] }
+  Future<Map<String, dynamic>> getRevenueDetails(
+    int gymId, {
+    String? search,
+    String? startDate,
+    String? endDate,
+    String? type,
+    String? paymentMethod,
+    String? status,
+    int page = 1,
+    int limit = 25,
+  }) async {
+    final res = await _ref.read(dioProvider).get('/admin/revenue', queryParameters: {
+      'gymId': gymId,
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (startDate != null && startDate.isNotEmpty) 'startDate': startDate,
+      if (endDate != null && endDate.isNotEmpty) 'endDate': endDate,
+      if (type != null && type != 'ALL') 'type': type,
+      if (paymentMethod != null && paymentMethod != 'ALL') 'paymentMethod': paymentMethod,
+      if (status != null) 'status': status,
+      'page': page,
+      'limit': limit,
+    });
+    if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
+    return {};
+  }
+
+  Future<void> archiveTransaction(int id) async {
+    await _ref.read(dioProvider).delete('/admin/transactions/$id');
+  }
+
+  Future<void> restoreTransaction(int id) async {
+    await _ref.read(dioProvider).post('/admin/transactions/$id/restore');
+  }
+
+  Future<void> archiveExpense(int id) async {
+    await _ref.read(dioProvider).delete('/admin/expenses/$id');
+  }
+
+  Future<void> restoreExpense(int id) async {
+    await _ref.read(dioProvider).post('/admin/expenses/$id/restore');
+  }
+
   Future<Map<String, dynamic>> getPeakHours(int gymId) async {
     final res = await _ref.read(dioProvider).get('/admin/reports/peak-hours', queryParameters: {'gymId': gymId});
     if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
@@ -300,4 +377,86 @@ class ApiRepository {
 
   // Keep old method as alias for backward compat
   Future<Map<String, dynamic>> getReports(int gymId) => getPeakHours(gymId);
+
+  // ── Member Session / Visit History (wallet usage logs) ───────────────────
+  Future<List<SessionLog>> getMemberSessionHistory(int memberId) async {
+    final res = await _ref.read(dioProvider).get('/admin/members/$memberId/session-history');
+    final data = res.data;
+    List<dynamic> rows;
+    if (data is List) {
+      rows = data;
+    } else if (data is Map) {
+      rows = data['data'] as List<dynamic>? ?? data['logs'] as List<dynamic>? ?? [];
+    } else {
+      rows = [];
+    }
+    return rows.map((e) => SessionLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // Manually log a visit (decrement balance)
+  Future<Map<String, dynamic>> logMemberVisit(int memberId, {int? minutesUsed}) async {
+    final res = await _ref.read(dioProvider).post(
+      '/admin/members/$memberId/log-visit',
+      data: {if (minutesUsed != null) 'minutesUsed': minutesUsed},
+    );
+    if (res.data is Map<String, dynamic>) return res.data as Map<String, dynamic>;
+    return {};
+  }
+
+  // ── Leaderboard ──────────────────────────────────────────────────────────
+  // category: 'check_ins' | 'spending' | 'sessions' | 'revenue'
+  // period:   'month' | 'quarter' | 'half_year' | 'year'
+  Future<List<LeaderboardEntry>> getLeaderboard(
+    int gymId, {
+    String category = 'check_ins',
+    String period = 'month',
+  }) async {
+    final res = await _ref.read(dioProvider).get('/admin/leaderboard', queryParameters: {
+      'gymId': gymId,
+      'category': category,
+      'period': period,
+    });
+    final data = res.data;
+    List<dynamic> rows;
+    if (data is List) {
+      rows = data;
+    } else if (data is Map) {
+      rows = data['results'] as List<dynamic>? ?? data['data'] as List<dynamic>? ?? [];
+    } else {
+      rows = [];
+    }
+    return rows.map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // ── Investor / Executive Report ──────────────────────────────────────────
+  Future<InvestorReport> getInvestorReport(
+    int gymId, {
+    String? startDate,
+    String? endDate,
+  }) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/reports/investor',
+      queryParameters: {
+        'gymId': gymId,
+        if (startDate != null) 'startDate': startDate,
+        if (endDate != null) 'endDate': endDate,
+      },
+    );
+    if (res.data is Map<String, dynamic>) {
+      return InvestorReport.fromJson(res.data as Map<String, dynamic>);
+    }
+    return const InvestorReport(
+      grossRevenue: 0,
+      totalExpenses: 0,
+      netProfit: 0,
+      profitMargin: 0,
+      membershipRev: 0,
+      personalTrainingRev: 0,
+      posRev: 0,
+      newMembers: 0,
+      totalActiveMembers: 0,
+      churnedMembers: 0,
+      churnRate: 0,
+    );
+  }
 }

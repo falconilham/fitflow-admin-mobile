@@ -8,6 +8,7 @@ import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../shared/utils/error_handler.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -67,7 +68,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+            .showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e)), backgroundColor: AppColors.error));
       }
     }
   }

@@ -13,6 +13,8 @@ import '../../features/members/screens/add_member_screen.dart';
 import '../../features/members/screens/edit_member_screen.dart';
 import '../../features/members/screens/renew_member_screen.dart';
 import '../../features/members/screens/import_member_screen.dart';
+import '../../features/members/screens/member_history_screen.dart';
+import '../../features/leaderboard/screens/leaderboard_screen.dart';
 import '../../features/store/screens/pos_screen.dart';
 import '../../features/store/screens/products_screen.dart';
 import '../../features/store/screens/add_edit_product_screen.dart';
@@ -50,6 +52,7 @@ abstract class AppRoutes {
   static const sessions = '/sessions';
   static const activity = '/activity';
   static const reports = '/reports';
+  static const leaderboard = '/leaderboard';
   static const gymSettings = '/settings/gym';
 }
 
@@ -130,6 +133,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: AppRoutes.sessions,  builder: (_, __) => const SessionsScreen()),
           GoRoute(path: AppRoutes.activity,  builder: (_, __) => const ActivityScreen()),
           GoRoute(path: AppRoutes.reports,   builder: (_, __) => const ReportsScreen()),
+          GoRoute(path: AppRoutes.leaderboard, builder: (_, __) => const LeaderboardScreen()),
           GoRoute(path: AppRoutes.gymSettings, builder: (_, __) => const GymSettingsScreen()),
         ],
       ),
@@ -155,6 +159,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/members/:id/renew',
         builder: (_, state) => RenewMemberScreen(
+          memberId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/members/:id/history',
+        builder: (_, state) => MemberHistoryScreen(
           memberId: int.parse(state.pathParameters['id']!),
         ),
       ),

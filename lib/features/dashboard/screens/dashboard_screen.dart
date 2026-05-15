@@ -10,6 +10,7 @@ import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/utils/format.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
 import '../../../shared/widgets/fitflow_logo.dart';
+import '../../../shared/utils/error_handler.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
 
@@ -134,7 +135,7 @@ class DashboardScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: statsAsync.when(
                 loading: () => _StatsGridSkeleton(),
-                error: (e, _) => _ErrorCard(message: e.toString()),
+                error: (e, _) => _ErrorCard(message: ErrorHandler.parse(e)),
                 data: (s) => GridView.count(
                   crossAxisCount: 2, shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -182,7 +183,7 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 checkInsAsync.when(
                   loading: () => const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))),
-                  error: (e, _) => _ErrorCard(message: e.toString()),
+                  error: (e, _) => _ErrorCard(message: ErrorHandler.parse(e)),
                   data: (records) => _CheckInList(records: records),
                 ),
               ]),

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../shared/utils/error_handler.dart';
 
 const _categories = ['Drink', 'Food', 'Supplement', 'Gear', 'Merchandise', 'Other'];
 
@@ -51,7 +52,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
       _descCtrl.text = p.description ?? '';
       setState(() { _category = p.category; _fetching = false; });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat produk: $e'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat produk: ${ErrorHandler.parse(e)}'), backgroundColor: AppColors.error));
       setState(() => _fetching = false);
     }
   }
@@ -85,7 +86,7 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
         context.pop();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e)), backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
+import '../../../shared/utils/error_handler.dart';
 
 enum AuthStatus { idle, loading, authenticated, unauthenticated, failed }
 
@@ -92,7 +93,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       print('Login error: $e\n$st');
       state = AsyncValue.data(AuthState(
         status: AuthStatus.failed,
-        error: 'Login gagal: ${e.toString()}',
+        error: ErrorHandler.parse(e),
       ));
     }
   }

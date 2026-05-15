@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../shared/utils/error_handler.dart';
 
 class ImportMemberScreen extends ConsumerStatefulWidget {
   const ImportMemberScreen({super.key});
@@ -62,7 +63,7 @@ class _ImportMemberScreenState extends ConsumerState<ImportMemberScreen> {
       final id = await ref.read(apiRepositoryProvider).generateMemberId(gymId);
       _memberIdCtrl.text = id;
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal generate ID: $e'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal generate ID: ${ErrorHandler.parse(e)}'), backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _generatingId = false);
     }
@@ -110,7 +111,7 @@ class _ImportMemberScreenState extends ConsumerState<ImportMemberScreen> {
         context.pop();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e)), backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -15,7 +15,10 @@ class AdminInfo {
     this.gym,
   });
 
-  bool get isOwner => role.toLowerCase() == 'owner';
+  bool get isOwner {
+    final r = role.toLowerCase();
+    return r == 'owner' || r == 'super_admin' || r == 'superadmin';
+  }
   String? get gymName => gym?.name;
 
   factory AdminInfo.fromJson(Map<String, dynamic> json) {
@@ -79,14 +82,26 @@ class Member {
   final String? memberId;
   final String status;
   final bool suspended;
+  final String? suspensionReason;
+  final String? suspensionEndDate;
   final String email;
   final String? phone;
+  final String? memberPhoto;
   final String joinDate;
   final String endDate;
   final int? packageId;
   final String? packageName;
   final int? packagePrice;
   final int? userId;
+  // Wallet / quota balance fields
+  final int? totalSessions;
+  final int? usedSessions;
+  final int? totalMinutes;
+  final int? usedMinutes;
+  final int? sessionDuration;
+  final bool hasVisitPackage;
+  // Remaining trainer (PT) sessions from active TrainerPackages
+  final int remainingPtSessions;
 
   Member({
     required this.id,
@@ -94,15 +109,43 @@ class Member {
     this.memberId,
     required this.status,
     required this.suspended,
+    this.suspensionReason,
+    this.suspensionEndDate,
     required this.email,
     this.phone,
+    this.memberPhoto,
     required this.joinDate,
     required this.endDate,
     this.packageId,
     this.packageName,
     this.packagePrice,
     this.userId,
+    this.totalSessions,
+    this.usedSessions,
+    this.totalMinutes,
+    this.usedMinutes,
+    this.sessionDuration,
+    this.hasVisitPackage = false,
+    this.remainingPtSessions = 0,
   });
+
+  bool get isArchived => status.toLowerCase() == 'deleted';
+
+  String get displayStatus {
+    if (isArchived) return 'Archived';
+    if (suspended) return 'Suspended';
+    return status;
+  }
+
+  int? get remainingSessions {
+    if (totalSessions == null) return null;
+    return (totalSessions! - (usedSessions ?? 0)).clamp(0, totalSessions!);
+  }
+
+  int? get remainingMinutes {
+    if (totalMinutes == null) return null;
+    return (totalMinutes! - (usedMinutes ?? 0)).clamp(0, totalMinutes!);
+  }
 
   factory Member.fromJson(Map<String, dynamic> json) {
     return Member(
@@ -111,14 +154,143 @@ class Member {
       memberId: json['memberId'] as String?,
       status: json['status'] as String? ?? 'Inactive',
       suspended: json['suspended'] as bool? ?? false,
+      suspensionReason: json['suspensionReason'] as String?,
+      suspensionEndDate: json['suspensionEndDate'] as String?,
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String?,
+      memberPhoto: json['memberPhoto'] as String?,
       joinDate: json['joinDate'] as String? ?? '',
       endDate: json['endDate'] as String? ?? '',
       packageId: (json['packageId'] as num?)?.toInt(),
       packageName: json['packageName'] ?? (json['MembershipPackage']?['name']),
       packagePrice: (json['packagePrice'] as num?)?.toInt() ?? (json['MembershipPackage']?['price'] as num?)?.toInt(),
       userId: (json['userId'] as num?)?.toInt(),
+      totalSessions: (json['totalSessions'] as num?)?.toInt(),
+      usedSessions: (json['usedSessions'] as num?)?.toInt(),
+      totalMinutes: (json['totalMinutes'] as num?)?.toInt(),
+      usedMinutes: (json['usedMinutes'] as num?)?.toInt(),
+      sessionDuration: (json['sessionDuration'] as num?)?.toInt(),
+      hasVisitPackage: json['hasVisitPackage'] as bool? ?? false,
+      remainingPtSessions: (json['remainingSessions'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class SessionLog {
+  final int id;
+  final String timestamp;
+  final int duration;
+  final String? adminName;
+  final String? packageName;
+
+  const SessionLog({
+    required this.id,
+    required this.timestamp,
+    required this.duration,
+    this.adminName,
+    this.packageName,
+  });
+
+  factory SessionLog.fromJson(Map<String, dynamic> json) {
+    return SessionLog(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      timestamp: json['timestamp'] as String? ?? json['createdAt'] as String? ?? '',
+      duration: (json['duration'] as num?)?.toInt() ?? 0,
+      adminName: json['adminName'] as String?,
+      packageName: json['packageName'] as String?,
+    );
+  }
+}
+
+class LeaderboardEntry {
+  final int rank;
+  final String name;
+  final String? photo;
+  final int score;
+  final int? entityId;
+
+  const LeaderboardEntry({
+    required this.rank,
+    required this.name,
+    this.photo,
+    required this.score,
+    this.entityId,
+  });
+
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
+    return LeaderboardEntry(
+      rank: (json['rank'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? 'Unknown',
+      photo: json['photo'] as String?,
+      score: (json['score'] as num?)?.toInt() ?? 0,
+      entityId: (json['entityId'] as num?)?.toInt(),
+    );
+  }
+}
+
+class InvestorReport {
+  final double grossRevenue;
+  final double totalExpenses;
+  final double netProfit;
+  final double profitMargin;
+  final double membershipRev;
+  final double personalTrainingRev;
+  final double posRev;
+  final int newMembers;
+  final int totalActiveMembers;
+  final int churnedMembers;
+  final double churnRate;
+  final String? periodStart;
+  final String? periodEnd;
+
+  const InvestorReport({
+    required this.grossRevenue,
+    required this.totalExpenses,
+    required this.netProfit,
+    required this.profitMargin,
+    required this.membershipRev,
+    required this.personalTrainingRev,
+    required this.posRev,
+    required this.newMembers,
+    required this.totalActiveMembers,
+    required this.churnedMembers,
+    required this.churnRate,
+    this.periodStart,
+    this.periodEnd,
+  });
+
+  factory InvestorReport.fromJson(Map<String, dynamic> json) {
+    final fh = (json['financialHealth'] as Map?) ?? const {};
+    final rd = (json['revenueDistribution'] as Map?) ?? const {};
+    final gm = (json['growthMetrics'] as Map?) ?? const {};
+    final period = (json['period'] as Map?) ?? const {};
+
+    double asDouble(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    int asInt(dynamic v) {
+      if (v == null) return 0;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
+    return InvestorReport(
+      grossRevenue: asDouble(fh['grossRevenue']),
+      totalExpenses: asDouble(fh['totalExpenses']),
+      netProfit: asDouble(fh['netProfit']),
+      profitMargin: asDouble(fh['profitMargin']),
+      membershipRev: asDouble(rd['membership']),
+      personalTrainingRev: asDouble(rd['personalTraining']),
+      posRev: asDouble(rd['posAndRetail']),
+      newMembers: asInt(gm['newMembers']),
+      totalActiveMembers: asInt(gm['totalActiveMembers']),
+      churnedMembers: asInt(gm['churnedMembers']),
+      churnRate: asDouble(gm['churnRate']),
+      periodStart: period['start'] as String?,
+      periodEnd: period['end'] as String?,
     );
   }
 }

@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../data/models/models.dart';
+import '../../../shared/utils/error_handler.dart';
 import 'member_detail_screen.dart';
 
 class EditMemberScreen extends ConsumerStatefulWidget {
@@ -52,7 +53,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
       _memberIdCtrl.text = m.memberId ?? '';
       if (results.length > 1) _settings = results[1] as GymSettings;
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat data: $e'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat data: ${ErrorHandler.parse(e)}'), backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _fetching = false);
     }
@@ -66,7 +67,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
       final id = await ref.read(apiRepositoryProvider).generateMemberId(gymId);
       _memberIdCtrl.text = id;
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal generate ID: $e'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal generate ID: ${ErrorHandler.parse(e)}'), backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _generatingId = false);
     }
@@ -87,7 +88,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
         context.pop();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e)), backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

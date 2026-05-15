@@ -50,7 +50,6 @@ flutter_*.png
 **/macos/Flutter/ephemeral
 
 # Web
-lib/generated_plugin_registrant.dart
 
 # Exceptions
 !**/ios/**/default.mode1v3
@@ -70,3 +69,6 @@ lib/generated_plugin_registrant.dart
 # Misc
 *.log
 .DS_Store
+
+
+node_modules

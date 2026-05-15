@@ -7,6 +7,7 @@ import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/utils/format.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../shared/utils/error_handler.dart';
 
 final _trainersProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final gymId = ref.watch(authProvider).valueOrNull?.activeGymId;
@@ -137,7 +138,7 @@ class _TrainersScreenState extends ConsumerState<TrainersScreen> {
       ref.invalidate(_trainersProvider);
       if (ctx.mounted) Navigator.pop(ctx);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e))));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -158,7 +159,7 @@ class _TrainersScreenState extends ConsumerState<TrainersScreen> {
       await ref.read(apiRepositoryProvider).deleteTrainer(id);
       ref.invalidate(_trainersProvider);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e))));
     }
   }
 
@@ -190,7 +191,7 @@ class _TrainersScreenState extends ConsumerState<TrainersScreen> {
       ),
       body: trAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
-        error: (e, _) => Center(child: Text(e.toString(), style: const TextStyle(color: AppColors.error))),
+        error: (e, _) => Center(child: Text(ErrorHandler.parse(e), style: const TextStyle(color: AppColors.error))),
         data: (list) {
           if (list.isEmpty) {
             return RefreshIndicator(

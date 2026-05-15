@@ -7,6 +7,7 @@ import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/utils/format.dart';
+import '../../../shared/utils/error_handler.dart';
 import 'member_detail_screen.dart';
 
 class RenewMemberScreen extends ConsumerStatefulWidget {
@@ -47,7 +48,7 @@ class _RenewMemberScreenState extends ConsumerState<RenewMemberScreen> {
         _loading = false;
       });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat data: $e'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat data: ${ErrorHandler.parse(e)}'), backgroundColor: AppColors.error));
       setState(() => _loading = false);
     }
   }
@@ -70,7 +71,7 @@ class _RenewMemberScreenState extends ConsumerState<RenewMemberScreen> {
         context.pop();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e)), backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

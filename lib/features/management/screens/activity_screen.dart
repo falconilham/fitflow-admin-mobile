@@ -8,6 +8,7 @@ import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/utils/format.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../shared/utils/error_handler.dart';
 
 final _activityProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final gymId = ref.watch(authProvider).valueOrNull?.activeGymId;
@@ -44,7 +45,7 @@ class ActivityScreen extends ConsumerWidget {
       ),
       body: actAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2)),
-        error: (e, _) => Center(child: Text(e.toString(), style: const TextStyle(color: AppColors.error))),
+        error: (e, _) => Center(child: Text(ErrorHandler.parse(e), style: const TextStyle(color: AppColors.error))),
         data: (list) {
           if (list.isEmpty) {
             return RefreshIndicator(
