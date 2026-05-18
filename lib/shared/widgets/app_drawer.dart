@@ -112,6 +112,7 @@ class AppDrawerContent extends ConsumerWidget {
                 initiallyExpanded: location.contains(AppRoutes.checkin) || 
                                    location.contains(AppRoutes.members) || 
                                    location.contains(AppRoutes.sessions) ||
+                                   location.contains(AppRoutes.classes) ||
                                    location.contains(AppRoutes.leaderboard),
                 children: [
                   _DrawerItem(
@@ -132,6 +133,13 @@ class AppDrawerContent extends ConsumerWidget {
                     icon: Icons.calendar_today_rounded,
                     title: 'Sessions',
                     route: AppRoutes.sessions,
+                    isSubItem: true,
+                    isSidebar: isSidebar,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.groups_rounded,
+                    title: 'Group Classes',
+                    route: AppRoutes.classes,
                     isSubItem: true,
                     isSidebar: isSidebar,
                   ),

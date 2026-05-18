@@ -9,7 +9,6 @@ import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/utils/format.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
-import '../../../shared/widgets/fitflow_logo.dart';
 import '../../../shared/utils/error_handler.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
@@ -62,7 +61,38 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: const DrawerMenuButton(),
-        title: const FitFlowLogo(fontSize: 20),
+        title: GestureDetector(
+          onTap: () {
+            final gyms = gymsAsync.valueOrNull ?? [];
+            if (gyms.length > 1) {
+              _showGymSwitcherBottomSheet(context, ref, gyms, activeGymId);
+            }
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  activeGymName,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if ((gymsAsync.valueOrNull?.length ?? 0) > 1) ...[
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.accent,
+                  size: 20,
+                ),
+              ],
+            ],
+          ),
+        ),
         backgroundColor: AppColors.surface,
         elevation: 0,
         actions: [
@@ -87,47 +117,13 @@ class DashboardScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
               color: AppColors.surface,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(activeGymName,
-                    style: const TextStyle(color: AppColors.accent, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1)),
-                const SizedBox(height: 6),
-                const Text('Real-time performance summary',
+              child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Overview',
+                    style: TextStyle(color: AppColors.accent, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                SizedBox(height: 6),
+                Text('Real-time performance summary',
                     style: TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
               ]),
-            ),
-
-            // Gym switcher (owner with multiple gyms) - Moved to top
-            gymsAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (gyms) => gyms.length > 1 ? Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Switch Gym', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(children: gyms.map((gym) {
-                      final active = activeGymId == gym.id;
-                      return GestureDetector(
-                        onTap: () => ref.read(authProvider.notifier).setActiveGym(gym.id),
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: active ? AppColors.accent : AppColors.card,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: active ? AppColors.accent : AppColors.border),
-                          ),
-                          child: Text(gym.name,
-                              style: TextStyle(color: active ? Colors.black : AppColors.textSecondary,
-                                  fontWeight: active ? FontWeight.bold : FontWeight.w600)),
-                        ),
-                      );
-                    }).toList().cast<Widget>()),
-                  ),
-                ]),
-              ) : const SizedBox.shrink(),
             ),
 
             // Stats
@@ -193,6 +189,74 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _showGymSwitcherBottomSheet(BuildContext context, WidgetRef ref, List<GymSimple> gyms, int? activeGymId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Pilih Gym',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: AppColors.textMuted),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: gyms.length,
+                    itemBuilder: (context, index) {
+                      final gym = gyms[index];
+                      final active = gym.id == activeGymId;
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        title: Text(
+                          gym.name,
+                          style: TextStyle(
+                            color: active ? AppColors.accent : AppColors.textPrimary,
+                            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                        trailing: active
+                            ? const Icon(Icons.check_circle_rounded, color: AppColors.accent)
+                            : null,
+                        onTap: () {
+                          ref.read(authProvider.notifier).setActiveGym(gym.id);
+                          Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

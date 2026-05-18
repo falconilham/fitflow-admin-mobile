@@ -29,6 +29,11 @@ import '../../features/management/screens/activity_screen.dart';
 import '../../features/management/screens/reports_screen.dart';
 import '../../features/settings/screens/gym_settings_screen.dart';
 import '../../shared/widgets/main_shell.dart';
+import '../../features/classes/screens/classes_screen.dart';
+import '../../features/classes/screens/class_categories_screen.dart';
+import '../../features/classes/screens/add_edit_class_screen.dart';
+import '../../features/classes/screens/class_roster_screen.dart';
+
 
 abstract class AppRoutes {
   static const splash = '/';
@@ -54,6 +59,10 @@ abstract class AppRoutes {
   static const reports = '/reports';
   static const leaderboard = '/leaderboard';
   static const gymSettings = '/settings/gym';
+  // Group Classes
+  static const classes = '/classes';
+  static const classCategories = '/classes/categories';
+  static const addClass = '/classes/add';
 }
 
 // ---------------------------------------------------------------------------
@@ -135,6 +144,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: AppRoutes.reports,   builder: (_, __) => const ReportsScreen()),
           GoRoute(path: AppRoutes.leaderboard, builder: (_, __) => const LeaderboardScreen()),
           GoRoute(path: AppRoutes.gymSettings, builder: (_, __) => const GymSettingsScreen()),
+          GoRoute(path: AppRoutes.classes, builder: (_, __) => const ClassesScreen()),
         ],
       ),
 
@@ -175,6 +185,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/products/:id/edit',
         builder: (_, state) => AddEditProductScreen(
           productId: int.tryParse(state.pathParameters['id'] ?? ''),
+        ),
+      ),
+
+      // Group Classes — full screen (outside shell)
+      GoRoute(path: AppRoutes.classCategories, builder: (_, __) => const ClassCategoriesScreen()),
+      GoRoute(path: AppRoutes.addClass, builder: (_, __) => const AddEditClassScreen()),
+      GoRoute(
+        path: '/classes/:id/edit',
+        builder: (_, state) => AddEditClassScreen(
+          classId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/classes/:id/roster',
+        builder: (_, state) => ClassRosterScreen(
+          classId: int.parse(state.pathParameters['id']!),
         ),
       ),
     ],

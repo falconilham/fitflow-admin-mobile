@@ -165,6 +165,20 @@ class ApiRepository {
     return data.map((e) => MembershipPackage.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  Future<MembershipPackage> createPackage(int gymId, Map<String, dynamic> data) async {
+    final res = await _ref.read(dioProvider).post('/admin/membership-packages', data: {...data, 'gymId': gymId});
+    return MembershipPackage.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<MembershipPackage> updatePackage(int id, Map<String, dynamic> data) async {
+    final res = await _ref.read(dioProvider).put('/admin/membership-packages/$id', data: data);
+    return MembershipPackage.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<void> deletePackage(int id) async {
+    await _ref.read(dioProvider).delete('/admin/membership-packages/$id');
+  }
+
   // Check-in — QR payload is JSON {userId, gymId, membershipId}
   Future<Map<String, dynamic>> checkInByQr(int gymId, int userId, int membershipId) async {
     final res = await _ref.read(dioProvider).post('/admin/check-in',
@@ -457,6 +471,106 @@ class ApiRepository {
       totalActiveMembers: 0,
       churnedMembers: 0,
       churnRate: 0,
+    );
+  }
+
+  // ── Group Classes ──────────────────────────────────────────────────────────
+  Future<List<GymClass>> getClasses(int gymId, {String? day, int? categoryId, int? trainerId, bool? isActive}) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/classes',
+      queryParameters: {
+        'gymId': gymId,
+        if (day != null) 'day': day,
+        if (categoryId != null) 'categoryId': categoryId,
+        if (trainerId != null) 'trainerId': trainerId,
+        if (isActive != null) 'isActive': isActive,
+      },
+    );
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => GymClass.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> createClass(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post('/admin/classes', data: {...data, 'gymId': gymId});
+  }
+
+  Future<void> updateClass(int classId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).put('/admin/classes/$classId', data: data);
+  }
+
+  Future<void> deleteClass(int classId) async {
+    await _ref.read(dioProvider).delete('/admin/classes/$classId');
+  }
+
+  // Class Categories
+  Future<List<ClassCategory>> getClassCategories(int gymId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/class-categories',
+      queryParameters: {'gymId': gymId},
+    );
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => ClassCategory.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> createClassCategory(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post('/admin/class-categories', data: {...data, 'gymId': gymId});
+  }
+
+  Future<void> updateClassCategory(int catId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).put('/admin/class-categories/$catId', data: data);
+  }
+
+  Future<void> deleteClassCategory(int catId) async {
+    await _ref.read(dioProvider).delete('/admin/class-categories/$catId');
+  }
+
+  // Roster / bookings & attendance
+  Future<Map<String, dynamic>> getClassBookings(int classId) async {
+    final res = await _ref.read(dioProvider).get('/admin/classes/$classId/bookings');
+    final data = res.data as Map<String, dynamic>;
+    
+    final classObj = GymClass.fromJson(data['class'] as Map<String, dynamic>);
+    final bookingsList = (data['bookings'] as List<dynamic>?)
+            ?.map((e) => ClassBooking.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [];
+    
+    final groupedMap = <String, List<ClassBooking>>{};
+    if (data['grouped'] is Map) {
+      final groupedRaw = data['grouped'] as Map<String, dynamic>;
+      for (final key in groupedRaw.keys) {
+        final list = (groupedRaw[key] as List<dynamic>?)
+                ?.map((e) => ClassBooking.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [];
+        groupedMap[key] = list;
+      }
+    }
+    
+    return {
+      'class': classObj,
+      'bookings': bookingsList,
+      'grouped': groupedMap,
+    };
+  }
+
+  Future<void> addClassMember(int classId, int memberId) async {
+    await _ref.read(dioProvider).post(
+      '/admin/classes/$classId/bookings',
+      data: {'memberId': memberId},
+    );
+  }
+
+  Future<void> cancelClassBooking(int classId, int bookingId) async {
+    await _ref.read(dioProvider).delete('/admin/classes/$classId/bookings/$bookingId');
+  }
+
+  Future<void> markClassAttendance(int classId, int bookingId, String status) async {
+    await _ref.read(dioProvider).post(
+      '/admin/classes/$classId/bookings/$bookingId/attendance',
+      data: {'status': status},
     );
   }
 }

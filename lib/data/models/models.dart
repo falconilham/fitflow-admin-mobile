@@ -301,6 +301,11 @@ class MembershipPackage {
   final int durationMonths;
   final int price;
   final String? type;
+  final String? description;
+  final bool hasRegistrationFee;
+  final int? totalSessions;
+  final int? sessionDuration;
+  final bool isActive;
 
   MembershipPackage({
     required this.id,
@@ -308,6 +313,11 @@ class MembershipPackage {
     required this.durationMonths,
     required this.price,
     this.type,
+    this.description,
+    this.hasRegistrationFee = true,
+    this.totalSessions,
+    this.sessionDuration,
+    this.isActive = true,
   });
 
   factory MembershipPackage.fromJson(Map<String, dynamic> json) {
@@ -317,6 +327,11 @@ class MembershipPackage {
       durationMonths: (json['durationMonths'] as num?)?.toInt() ?? 1,
       price: (json['price'] as num?)?.toInt() ?? 0,
       type: json['type'] as String?,
+      description: json['description'] as String?,
+      hasRegistrationFee: json['hasRegistrationFee'] as bool? ?? true,
+      totalSessions: (json['totalSessions'] as num?)?.toInt(),
+      sessionDuration: (json['sessionDuration'] as num?)?.toInt(),
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 }
@@ -446,6 +461,162 @@ class CheckInRecord {
       memberName: json['memberName'] as String? ?? json['name'] as String? ?? 'Unknown',
       memberPhoto: json['memberPhoto'] as String?,
       checkedInAt: json['checkedInAt'] as String? ?? json['createdAt'] as String? ?? '',
+    );
+  }
+}
+
+class GymClass {
+  final int id;
+  final int gymId;
+  final String title;
+  final String? description;
+  final String trainer;
+  final int? trainerId;
+  final int? categoryId;
+  final String day;
+  final String time;
+  final String duration;
+  final int capacity;
+  final int booked;
+  final String? color;
+  final bool isActive;
+  final String? categoryName;
+  final String? categoryColor;
+
+  GymClass({
+    required this.id,
+    required this.gymId,
+    required this.title,
+    this.description,
+    required this.trainer,
+    this.trainerId,
+    this.categoryId,
+    required this.day,
+    required this.time,
+    required this.duration,
+    required this.capacity,
+    required this.booked,
+    this.color,
+    required this.isActive,
+    this.categoryName,
+    this.categoryColor,
+  });
+
+  factory GymClass.fromJson(Map<String, dynamic> json) {
+    final categoryJson = json['category'] as Map<String, dynamic>?;
+    return GymClass(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      gymId: (json['gymId'] as num?)?.toInt() ?? 0,
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String?,
+      trainer: json['trainer'] as String? ?? '',
+      trainerId: (json['trainerId'] as num?)?.toInt(),
+      categoryId: (json['categoryId'] as num?)?.toInt(),
+      day: json['day'] as String? ?? 'Monday',
+      time: json['time'] as String? ?? '08:00',
+      duration: json['duration'] as String? ?? '60',
+      capacity: (json['capacity'] as num?)?.toInt() ?? 10,
+      booked: (json['booked'] as num?)?.toInt() ?? 0,
+      color: json['color'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+      categoryName: categoryJson?['name'] as String?,
+      categoryColor: categoryJson?['color'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'description': description,
+      'trainerId': trainerId,
+      'categoryId': categoryId,
+      'day': day,
+      'time': time,
+      'duration': duration,
+      'capacity': capacity,
+      'color': color,
+      'isActive': isActive,
+    };
+  }
+}
+
+class ClassCategory {
+  final int id;
+  final int gymId;
+  final String name;
+  final String? color;
+
+  ClassCategory({
+    required this.id,
+    required this.gymId,
+    required this.name,
+    this.color,
+  });
+
+  factory ClassCategory.fromJson(Map<String, dynamic> json) {
+    return ClassCategory(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      gymId: (json['gymId'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      color: json['color'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'color': color,
+    };
+  }
+}
+
+class ClassBooking {
+  final int id;
+  final int classId;
+  final int memberId;
+  final int gymId;
+  final String status; // 'booked' | 'waitlist' | 'attended' | 'no_show' | 'cancelled'
+  final int? waitlistPosition;
+  final String bookedAt;
+  final String? cancelledAt;
+  final String? attendedAt;
+  final String? cancelledBy;
+  final String? memberName;
+  final String? memberPhoto;
+  final String? memberIdString;
+
+  ClassBooking({
+    required this.id,
+    required this.classId,
+    required this.memberId,
+    required this.gymId,
+    required this.status,
+    this.waitlistPosition,
+    required this.bookedAt,
+    this.cancelledAt,
+    this.attendedAt,
+    this.cancelledBy,
+    this.memberName,
+    this.memberPhoto,
+    this.memberIdString,
+  });
+
+  factory ClassBooking.fromJson(Map<String, dynamic> json) {
+    final memberJson = json['member'] as Map<String, dynamic>?;
+    return ClassBooking(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      classId: (json['classId'] as num?)?.toInt() ?? 0,
+      memberId: (json['memberId'] as num?)?.toInt() ?? 0,
+      gymId: (json['gymId'] as num?)?.toInt() ?? 0,
+      status: json['status'] as String? ?? 'booked',
+      waitlistPosition: (json['waitlistPosition'] as num?)?.toInt(),
+      bookedAt: json['bookedAt'] as String? ?? json['createdAt'] as String? ?? '',
+      cancelledAt: json['cancelledAt'] as String?,
+      attendedAt: json['attendedAt'] as String?,
+      cancelledBy: json['cancelledBy'] as String?,
+      memberName: memberJson?['name'] as String?,
+      memberPhoto: memberJson?['memberPhoto'] as String?,
+      memberIdString: memberJson?['memberId'] as String?,
     );
   }
 }
