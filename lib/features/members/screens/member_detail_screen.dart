@@ -776,19 +776,51 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(m.packageName ?? '-',
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    )),
-                if (m.packagePrice != null)
-                  Text('Rp ${formatPrice(m.packagePrice!)}',
-                      style: const TextStyle(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      )),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(m.packageName ?? '-',
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          )),
+                      if (m.packagePrice != null) ...[
+                        const SizedBox(height: 4),
+                        Text('Rp ${formatPrice(m.packagePrice!)}',
+                            style: const TextStyle(
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            )),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!isArchived)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.accent,
+                      backgroundColor: AppColors.accent.withAlpha(20),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.autorenew_rounded, size: 16),
+                    label: const Text(
+                      'Perpanjang',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    onPressed: () async {
+                      await context.push('/members/${m.id}/renew');
+                      widget.onRefresh();
+                    },
+                  ),
               ],
             ),
           ],
@@ -921,6 +953,7 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: IconButton(
+                key: const ValueKey('edit_member_button'),
                 icon: const Icon(Icons.edit_note_rounded,
                     color: AppColors.textSecondary),
                 onPressed: () => context.push('/members/${m.id}/edit'),

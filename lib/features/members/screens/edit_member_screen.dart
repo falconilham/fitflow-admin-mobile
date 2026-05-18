@@ -36,6 +36,15 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   String? _base64Image;
   String? _existingPhotoUrl;
 
+  // New features: Change Password & Extend Membership
+  bool _changePasswordMode = false;
+  final _passwordCtrl = TextEditingController();
+
+  bool _extendMode = false;
+  int? _selectedPackageId;
+  String _paymentMethod = 'Cash';
+  List<MembershipPackage> _packages = [];
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +58,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
     _phoneCtrl.dispose();
     _memberIdCtrl.dispose();
     _addressCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
@@ -58,6 +68,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
       final futures = [
         ref.read(apiRepositoryProvider).getMemberDetail(widget.memberId),
         if (gymId != null) ref.read(apiRepositoryProvider).getGymSettings(gymId).catchError((_) => const GymSettings()),
+        if (gymId != null) ref.read(apiRepositoryProvider).getPackages(gymId).catchError((_) => <MembershipPackage>[]),
       ];
       final results = await Future.wait(futures);
       final m = results[0] as Member;
@@ -67,7 +78,17 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
       _memberIdCtrl.text = m.memberId ?? '';
       _addressCtrl.text = m.address ?? '';
       _existingPhotoUrl = m.memberPhoto;
+      
       if (results.length > 1) _settings = results[1] as GymSettings;
+      
+      if (results.length > 2) {
+        _packages = results[2] as List<MembershipPackage>;
+        if (m.packageId != null && _packages.any((p) => p.id == m.packageId)) {
+          _selectedPackageId = m.packageId;
+        } else if (_packages.isNotEmpty) {
+          _selectedPackageId = _packages.first.id;
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -161,8 +182,25 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member ID wajib diisi')));
       return;
     }
+    if (_changePasswordMode && _passwordCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password baru wajib diisi'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+    if (_extendMode && _selectedPackageId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih paket untuk perpanjangan'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
     setState(() => _loading = true);
     try {
+      final selectedPkg = _selectedPackageId != null
+          ? _packages.firstWhere((p) => p.id == _selectedPackageId, orElse: () => _packages.first)
+          : null;
+
       await ref.read(apiRepositoryProvider).updateMember(widget.memberId, {
         'name': _nameCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
@@ -170,7 +208,13 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
         'address': _addressCtrl.text.trim(),
         if (_memberIdCtrl.text.isNotEmpty) 'memberId': _memberIdCtrl.text.trim(),
         if (_base64Image != null) 'memberPhoto': _base64Image,
+        'password': _changePasswordMode ? _passwordCtrl.text.trim() : null,
+        'extendDuration': _extendMode && selectedPkg != null ? selectedPkg.durationMonths : null,
+        'paymentMethod': _extendMode ? _paymentMethod : null,
+        'packageId': _extendMode ? _selectedPackageId : null,
+        'pricePaid': _extendMode && selectedPkg != null ? selectedPkg.price : null,
       });
+
       if (mounted) {
         ref.invalidate(memberDetailProvider(widget.memberId));
         ScaffoldMessenger.of(context).showSnackBar(
@@ -343,6 +387,183 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
                 ],
               ),
             ),
+            
+            const SizedBox(height: 16),
+            // Change Password Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'GANTI PASSWORD',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Switch(
+                        value: _changePasswordMode,
+                        activeThumbColor: AppColors.accent,
+                        onChanged: (val) {
+                          setState(() {
+                            _changePasswordMode = val;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  if (_changePasswordMode) ...[
+                    const SizedBox(height: 10),
+                    _label('Password Baru *'),
+                    TextFormField(
+                      controller: _passwordCtrl,
+                      obscureText: true,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(
+                        hintText: 'Password baru minimal 6 karakter',
+                      ),
+                      validator: (v) {
+                        if (_changePasswordMode && (v == null || v.isEmpty)) {
+                          return 'Password baru wajib diisi';
+                        }
+                        if (_changePasswordMode && v!.length < 6) {
+                          return 'Password minimal 6 karakter';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+            // Extend Membership Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'PERPANJANG MEMBERSHIP',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Switch(
+                        value: _extendMode,
+                        activeThumbColor: AppColors.accent,
+                        onChanged: (val) {
+                          setState(() {
+                            _extendMode = val;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  if (_extendMode) ...[
+                    const SizedBox(height: 14),
+                    _label('Pilih Paket Membership *'),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: _selectedPackageId,
+                          dropdownColor: AppColors.surface,
+                          isExpanded: true,
+                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                          hint: const Text('Pilih Paket', style: TextStyle(color: AppColors.textMuted)),
+                          items: _packages.map((pkg) {
+                            return DropdownMenuItem<int>(
+                              value: pkg.id,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      pkg.name,
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Rp ${pkg.price.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (m) => "${m[1]}.")}',
+                                    style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedPackageId = val;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _label('Metode Pembayaran *'),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _paymentMethod,
+                          dropdownColor: AppColors.surface,
+                          isExpanded: true,
+                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                          items: const [
+                            DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                            DropdownMenuItem(value: 'Transfer', child: Text('Transfer')),
+                            DropdownMenuItem(value: 'QR', child: Text('QR Code')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _paymentMethod = val;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
             const SizedBox(height: 20),
             SizedBox(
               height: 52,
