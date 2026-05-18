@@ -35,8 +35,12 @@ class AdminInfo {
 
 class GymInfo {
   final String name;
-  GymInfo({required this.name});
-  factory GymInfo.fromJson(Map<String, dynamic> json) => GymInfo(name: json['name'] as String? ?? '');
+  final List<String> features;
+  GymInfo({required this.name, this.features = const []});
+  factory GymInfo.fromJson(Map<String, dynamic> json) => GymInfo(
+        name: json['name'] as String? ?? '',
+        features: (json['features'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      );
 }
 
 class GymSimple {
@@ -87,6 +91,7 @@ class Member {
   final String email;
   final String? phone;
   final String? memberPhoto;
+  final String? address;
   final String joinDate;
   final String endDate;
   final int? packageId;
@@ -114,6 +119,7 @@ class Member {
     required this.email,
     this.phone,
     this.memberPhoto,
+    this.address,
     required this.joinDate,
     required this.endDate,
     this.packageId,
@@ -134,6 +140,12 @@ class Member {
   String get displayStatus {
     if (isArchived) return 'Archived';
     if (suspended) return 'Suspended';
+    bool dateExpired = false;
+    try {
+      final end = DateTime.parse(endDate);
+      dateExpired = end.isBefore(DateTime.now());
+    } catch (_) {}
+    if (status.toLowerCase() == 'expired' || dateExpired) return 'Expired';
     return status;
   }
 
@@ -159,6 +171,7 @@ class Member {
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String?,
       memberPhoto: json['memberPhoto'] as String?,
+      address: json['address'] as String?,
       joinDate: json['joinDate'] as String? ?? '',
       endDate: json['endDate'] as String? ?? '',
       packageId: (json['packageId'] as num?)?.toInt(),

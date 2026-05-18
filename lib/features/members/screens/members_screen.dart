@@ -260,16 +260,23 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
   }
 }
 
-class _MemberCard extends StatelessWidget {
+class _MemberCard extends ConsumerWidget {
   const _MemberCard({required this.member});
   final Member member;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final features = ref.watch(authProvider).valueOrNull?.admin?.gym?.features ?? [];
+    final hasSessionPackages = features.contains('session_packages');
     final m = member;
     final isArchived = m.isArchived;
     final isSuspended = m.suspended;
-    final isExpired = m.status.toLowerCase() == 'expired';
-    final isActive = m.status.toLowerCase() == 'active' && !isSuspended;
+    bool dateExpired = false;
+    try {
+      final end = DateTime.parse(m.endDate);
+      dateExpired = end.isBefore(DateTime.now());
+    } catch (_) {}
+    final isExpired = m.status.toLowerCase() == 'expired' || dateExpired;
+    final isActive = m.status.toLowerCase() == 'active' && !isSuspended && !isExpired;
 
     final statusColor = isArchived
         ? AppColors.textMuted
@@ -346,9 +353,9 @@ class _MemberCard extends StatelessWidget {
                 _StatusBadge(label: m.displayStatus, color: statusColor),
               ],
             ),
-            if (_shouldShowSessionRow(m)) ...[
+            if (_shouldShowSessionRow(m, hasSessionPackages)) ...[
               const SizedBox(height: 10),
-              _SessionRow(member: m),
+              _SessionRow(member: m, hasSessionPackages: hasSessionPackages),
             ],
           ],
         ),
@@ -356,26 +363,29 @@ class _MemberCard extends StatelessWidget {
     );
   }
 
-  bool _shouldShowSessionRow(Member m) {
-    return m.hasVisitPackage ||
-        (m.totalSessions ?? 0) > 0 ||
-        (m.totalMinutes ?? 0) > 0 ||
-        m.remainingPtSessions > 0;
+  bool _shouldShowSessionRow(Member m, bool hasSessionPackages) {
+    return (hasSessionPackages && (
+      m.hasVisitPackage ||
+      (m.totalSessions ?? 0) > 0 ||
+      (m.totalMinutes ?? 0) > 0
+    )) || m.remainingPtSessions > 0;
   }
 }
 
 class _SessionRow extends StatelessWidget {
   final Member member;
-  const _SessionRow({required this.member});
+  final bool hasSessionPackages;
+  const _SessionRow({required this.member, required this.hasSessionPackages});
 
   @override
   Widget build(BuildContext context) {
     final children = <Widget>[];
 
     // Gym session quota (PERIOD with quota / SESSION / Minute-based)
-    if (member.hasVisitPackage ||
+    if (hasSessionPackages && (
+        member.hasVisitPackage ||
         (member.totalSessions ?? 0) > 0 ||
-        (member.totalMinutes ?? 0) > 0) {
+        (member.totalMinutes ?? 0) > 0)) {
       final total = member.totalSessions ?? 0;
       final used = member.usedSessions ?? 0;
       final showSessions = total > 0;

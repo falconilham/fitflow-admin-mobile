@@ -585,10 +585,12 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
 
   @override
   Widget build(BuildContext context) {
+    final features = ref.watch(authProvider).valueOrNull?.admin?.gym?.features ?? [];
+    final hasSessionPackages = features.contains('session_packages');
     final m = widget.member;
     final isArchived = m.isArchived;
-    final isActive = !isArchived && !m.suspended && m.status.toLowerCase() == 'active';
     final expired = _isExpired(m.endDate);
+    final isActive = !isArchived && !m.suspended && m.status.toLowerCase() == 'active' && !expired;
     final statusColor = isArchived
         ? AppColors.textMuted
         : m.suspended
@@ -600,7 +602,7 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
 
     final totalSessions = m.totalSessions ?? 0;
     final usedSessions = m.usedSessions ?? 0;
-    final hasQuota = !isArchived &&
+    final hasQuota = !isArchived && hasSessionPackages &&
         (totalSessions > 0 ||
             (m.totalMinutes ?? 0) > 0 ||
             m.hasVisitPackage);
