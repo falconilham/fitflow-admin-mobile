@@ -35,6 +35,9 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   File? _imageFile;
   String? _base64Image;
   String? _existingPhotoUrl;
+  List<Member> _allMembers = [];
+  bool _isSharedPhone = false;
+  int? _referenceMemberId;
 
   // New features: Change Password & Extend Membership
   bool _changePasswordMode = false;
@@ -69,6 +72,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
         ref.read(apiRepositoryProvider).getMemberDetail(widget.memberId),
         if (gymId != null) ref.read(apiRepositoryProvider).getGymSettings(gymId).catchError((_) => const GymSettings()),
         if (gymId != null) ref.read(apiRepositoryProvider).getPackages(gymId).catchError((_) => <MembershipPackage>[]),
+        if (gymId != null) ref.read(apiRepositoryProvider).getMembers(gymId, limit: 1000).catchError((_) => <Member>[]),
       ];
       final results = await Future.wait(futures);
       final m = results[0] as Member;
@@ -78,6 +82,8 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
       _memberIdCtrl.text = m.memberId ?? '';
       _addressCtrl.text = m.address ?? '';
       _existingPhotoUrl = m.memberPhoto;
+      _isSharedPhone = m.referenceMemberId != null;
+      _referenceMemberId = m.referenceMemberId;
       
       if (results.length > 1) _settings = results[1] as GymSettings;
       
@@ -88,6 +94,9 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
         } else if (_packages.isNotEmpty) {
           _selectedPackageId = _packages.first.id;
         }
+      }
+      if (results.length > 3) {
+        _allMembers = results[3] as List<Member>;
       }
     } catch (e) {
       if (mounted) {
@@ -213,6 +222,8 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
         'paymentMethod': _extendMode ? _paymentMethod : null,
         'packageId': _extendMode ? _selectedPackageId : null,
         'pricePaid': _extendMode && selectedPkg != null ? selectedPkg.price : null,
+        'isSharedPhone': _isSharedPhone,
+        'referenceMemberId': _isSharedPhone ? _referenceMemberId : null,
       });
 
       if (mounted) {
@@ -313,12 +324,125 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
                   ),
                   const SizedBox(height: 14),
 
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _isSharedPhone,
+                        activeColor: AppColors.accent,
+                        checkColor: Colors.black,
+                        onChanged: (val) {
+                          setState(() {
+                            _isSharedPhone = val ?? false;
+                            if (!_isSharedPhone) {
+                              _referenceMemberId = null;
+                              _emailCtrl.clear();
+                              _phoneCtrl.clear();
+                            }
+                          });
+                        },
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Gunakan Kontak Member Lain (Shared Phone & Email)',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  if (_isSharedPhone) ...[
+                    _label('Pilih Member Referensi *'),
+                    Autocomplete<Member>(
+                      initialValue: TextEditingValue(
+                        text: _referenceMemberId != null && _allMembers.any((m) => m.id == _referenceMemberId)
+                            ? _allMembers.firstWhere((m) => m.id == _referenceMemberId).name
+                            : '',
+                      ),
+                      displayStringForOption: (Member option) => '${option.name} (${option.phone ?? "No Phone"})',
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        final list = _allMembers.where((m) => m.id != widget.memberId);
+                        if (textEditingValue.text.isEmpty) {
+                          return list;
+                        }
+                        return list.where((Member option) {
+                          return option.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                              (option.phone ?? '').contains(textEditingValue.text);
+                        });
+                      },
+                      onSelected: (Member selection) {
+                        setState(() {
+                          _referenceMemberId = selection.id;
+                          _emailCtrl.text = selection.email;
+                          _phoneCtrl.text = selection.phone ?? '';
+                        });
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            color: AppColors.surface,
+                            elevation: 4.0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: const BorderSide(color: AppColors.border),
+                            ),
+                            child: SizedBox(
+                              width: MediaQuery.of(context).size.width - 64,
+                              height: 200,
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final option = options.elementAt(index);
+                                  return InkWell(
+                                    onTap: () => onSelected(option),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            option.name,
+                                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            option.phone ?? 'No Phone',
+                                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                        return TextFormField(
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          style: const TextStyle(color: AppColors.textPrimary),
+                          decoration: const InputDecoration(
+                            hintText: 'Cari nama atau no. HP member...',
+                          ),
+                          validator: (v) => _isSharedPhone && _referenceMemberId == null ? 'Pilih member referensi' : null,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
                   _label('Email${emailRequired ? ' *' : ' (Opsional)'}'),
                   TextFormField(
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: AppColors.textPrimary),
-                    validator: emailRequired ? (v) => v!.isEmpty ? 'Email wajib diisi' : null : null,
+                    readOnly: _isSharedPhone,
+                    validator: emailRequired && !_isSharedPhone ? (v) => v!.isEmpty ? 'Email wajib diisi' : null : null,
                     decoration: InputDecoration(hintText: emailRequired ? 'john@email.com' : 'Email (Opsional)'),
                   ),
                   const SizedBox(height: 14),
@@ -328,7 +452,8 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
                     controller: _phoneCtrl,
                     keyboardType: TextInputType.phone,
                     style: const TextStyle(color: AppColors.textPrimary),
-                    validator: phoneRequired ? (v) => v!.isEmpty ? 'No. HP wajib diisi' : null : null,
+                    readOnly: _isSharedPhone,
+                    validator: phoneRequired && !_isSharedPhone ? (v) => v!.isEmpty ? 'No. HP wajib diisi' : null : null,
                     decoration: InputDecoration(hintText: phoneRequired ? '08xxxxxxxxxx' : 'No. HP (Opsional)'),
                   ),
                   const SizedBox(height: 14),

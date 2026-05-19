@@ -98,6 +98,7 @@ class Member {
   final String? packageName;
   final int? packagePrice;
   final int? userId;
+  final int? referenceMemberId;
   // Wallet / quota balance fields
   final int? totalSessions;
   final int? usedSessions;
@@ -126,6 +127,7 @@ class Member {
     this.packageName,
     this.packagePrice,
     this.userId,
+    this.referenceMemberId,
     this.totalSessions,
     this.usedSessions,
     this.totalMinutes,
@@ -178,6 +180,7 @@ class Member {
       packageName: json['packageName'] ?? (json['MembershipPackage']?['name']),
       packagePrice: (json['packagePrice'] as num?)?.toInt() ?? (json['MembershipPackage']?['price'] as num?)?.toInt(),
       userId: (json['userId'] as num?)?.toInt(),
+      referenceMemberId: (json['referenceMemberId'] as num?)?.toInt(),
       totalSessions: (json['totalSessions'] as num?)?.toInt(),
       usedSessions: (json['usedSessions'] as num?)?.toInt(),
       totalMinutes: (json['totalMinutes'] as num?)?.toInt(),

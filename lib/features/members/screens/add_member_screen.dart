@@ -26,6 +26,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
   final _memberIdCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   List<MembershipPackage> _packages = [];
+  List<Member> _allMembers = [];
   int? _selectedPkg;
   bool _loading = false;
   bool _pkgLoading = true;
@@ -34,6 +35,8 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
 
   File? _imageFile;
   String? _base64Image;
+  bool _isSharedPhone = false;
+  int? _referenceMemberId;
 
   @override
   void initState() {
@@ -61,10 +64,12 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
       final results = await Future.wait([
         ref.read(apiRepositoryProvider).getPackages(gymId),
         ref.read(apiRepositoryProvider).getGymSettings(gymId).catchError((_) => const GymSettings()),
+        ref.read(apiRepositoryProvider).getMembers(gymId, limit: 1000).catchError((_) => <Member>[]),
       ]);
       setState(() {
         _packages = results[0] as List<MembershipPackage>;
         _settings = results[1] as GymSettings;
+        _allMembers = results[2] as List<Member>;
         _pkgLoading = false;
       });
     } catch (e) {
@@ -170,6 +175,8 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
         if (_memberIdCtrl.text.isNotEmpty) 'memberId': _memberIdCtrl.text.trim(),
         'packageId': _selectedPkg,
         if (_base64Image != null) 'memberPhoto': _base64Image,
+        'isSharedPhone': _isSharedPhone,
+        if (_isSharedPhone && _referenceMemberId != null) 'referenceMemberId': _referenceMemberId,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -241,12 +248,119 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
               ),
               const SizedBox(height: 14),
 
+              Row(
+                children: [
+                  Checkbox(
+                    value: _isSharedPhone,
+                    activeColor: AppColors.accent,
+                    checkColor: Colors.black,
+                    onChanged: (val) {
+                      setState(() {
+                        _isSharedPhone = val ?? false;
+                        if (!_isSharedPhone) {
+                          _referenceMemberId = null;
+                          _emailCtrl.clear();
+                          _phoneCtrl.clear();
+                        }
+                      });
+                    },
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Gunakan Kontak Member Lain (Shared Phone & Email)',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              if (_isSharedPhone) ...[
+                _label('Pilih Member Referensi *'),
+                Autocomplete<Member>(
+                  displayStringForOption: (Member option) => '${option.name} (${option.phone ?? "No Phone"})',
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return _allMembers;
+                    }
+                    return _allMembers.where((Member option) {
+                      return option.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                          (option.phone ?? '').contains(textEditingValue.text);
+                    });
+                  },
+                  onSelected: (Member selection) {
+                    setState(() {
+                      _referenceMemberId = selection.id;
+                      _emailCtrl.text = selection.email;
+                      _phoneCtrl.text = selection.phone ?? '';
+                    });
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        color: AppColors.surface,
+                        elevation: 4.0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(color: AppColors.border),
+                        ),
+                        child: SizedBox(
+                          width: MediaQuery.of(context).size.width - 64,
+                          height: 200,
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: options.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final option = options.elementAt(index);
+                              return InkWell(
+                                onTap: () => onSelected(option),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        option.name,
+                                        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        option.phone ?? 'No Phone',
+                                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                    return TextFormField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(
+                        hintText: 'Cari nama atau no. HP member...',
+                      ),
+                      validator: (v) => _isSharedPhone && _referenceMemberId == null ? 'Pilih member referensi' : null,
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+              ],
+
               _label('Email${emailRequired ? ' *' : ' (Opsional)'}'),
               TextFormField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(color: AppColors.textPrimary),
-                validator: emailRequired ? (v) => v!.isEmpty ? 'Email wajib diisi' : null : null,
+                readOnly: _isSharedPhone,
+                validator: emailRequired && !_isSharedPhone ? (v) => v!.isEmpty ? 'Email wajib diisi' : null : null,
                 decoration: InputDecoration(hintText: emailRequired ? 'john@email.com' : 'Email (Opsional)'),
               ),
               const SizedBox(height: 14),
@@ -256,7 +370,8 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
                 style: const TextStyle(color: AppColors.textPrimary),
-                validator: phoneRequired ? (v) => v!.isEmpty ? 'No. HP wajib diisi' : null : null,
+                readOnly: _isSharedPhone,
+                validator: phoneRequired && !_isSharedPhone ? (v) => v!.isEmpty ? 'No. HP wajib diisi' : null : null,
                 decoration: InputDecoration(hintText: phoneRequired ? '08xxxxxxxxxx' : 'No. HP (Opsional)'),
               ),
               const SizedBox(height: 14),

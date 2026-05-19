@@ -44,6 +44,7 @@ Future<void> _submit() async {
   } catch (e) {
     _emailController.clear();
     _passwordController.clear();
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(e.toString()),
