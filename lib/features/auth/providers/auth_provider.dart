@@ -47,6 +47,8 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   @override
   Future<AuthState> build() async {
+    // ignore: avoid_print
+    print('AuthNotifier build() called');
     final storage = ref.watch(secureStorageProvider);
     final token = await storage.read(key: _tokenKey);
     if (token != null) {
@@ -88,13 +90,17 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         activeGymId: admin.gymId,
       ));
     } catch (e, st) {
+      final parsedError = ErrorHandler.parse(e);
       // Log the real error so we can debug it
       // ignore: avoid_print
       print('Login error: $e\n$st');
+      // ignore: avoid_print
+      print('Parsed error: $parsedError');
       state = AsyncValue.data(AuthState(
         status: AuthStatus.failed,
-        error: ErrorHandler.parse(e),
+        error: parsedError,
       ));
+      throw parsedError;
     }
   }
 

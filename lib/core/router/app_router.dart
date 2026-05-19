@@ -87,6 +87,7 @@ class RouterNotifier extends ChangeNotifier {
 
     // ── 1. Still loading → stay on splash (or go to splash if not there) ─
     if (authAsync.isLoading) {
+      if (loc == AppRoutes.login) return null;
       return loc == AppRoutes.splash ? null : AppRoutes.splash;
     }
 

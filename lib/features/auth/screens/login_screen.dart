@@ -24,12 +24,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    if (email.isEmpty || password.isEmpty) return;
-    await ref.read(authProvider.notifier).login(email, password);
+Future<void> _submit() async {
+  final email = _emailController.text.trim();
+  final password = _passwordController.text;
+
+  if (email.isEmpty || password.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Email dan password wajib diisi'),
+      ),
+    );
+    return;
   }
+
+  try {
+    await ref
+        .read(authProvider.notifier)
+        .login(email, password);
+  } catch (e) {
+    _emailController.clear();
+    _passwordController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.toString()),
+      ),
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const FitFlowLogo(fontSize: 48, alignment: MainAxisAlignment.center),
               const SizedBox(height: 48),
               TextField(
+                key: const Key('email_field'),
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(color: AppColors.textPrimary),
@@ -59,6 +81,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
+                key: const Key('password_field'),
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 style: const TextStyle(color: AppColors.textPrimary),
@@ -98,6 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
+                  key: const Key('login_button'),
                   onPressed: isLoading ? null : _submit,
                   child: isLoading
                       ? const SizedBox(

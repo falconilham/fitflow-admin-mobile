@@ -35,7 +35,8 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) {
-        if (error.response?.statusCode == 401) {
+        if (error.response?.statusCode == 401 &&
+            !error.requestOptions.path.endsWith('/login')) {
           // Token expired or invalid -> logout
           ref.read(authProvider.notifier).logout();
         }
