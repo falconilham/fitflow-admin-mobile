@@ -157,6 +157,16 @@ class ApiRepository {
     return GymSettings.fromJson(res.data as Map<String, dynamic>);
   }
 
+  // Calculate extension fee breakdown before submitting renewal
+  // Returns: { packagePrice, adminFee, total, alreadyPaidAdminFee, packageName, packageType }
+  Future<Map<String, dynamic>> calculateExtension(int memberId, int packageId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/members/$memberId/calculate-extension',
+      queryParameters: {'packageId': packageId},
+    );
+    return res.data as Map<String, dynamic>;
+  }
+
   // Packages
   Future<List<MembershipPackage>> getPackages(int gymId) async {
     final res = await _ref.read(dioProvider).get('/admin/membership-packages', queryParameters: {'gymId': gymId});

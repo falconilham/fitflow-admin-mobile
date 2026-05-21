@@ -24,6 +24,10 @@ class _RenewMemberScreenState extends ConsumerState<RenewMemberScreen> {
   bool _loading = true;
   bool _submitting = false;
 
+  // Fee breakdown
+  Map<String, dynamic>? _feeBreakdown;
+  bool _feeLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +57,18 @@ class _RenewMemberScreenState extends ConsumerState<RenewMemberScreen> {
     }
   }
 
+  Future<void> _fetchFeeBreakdown(int packageId) async {
+    setState(() { _feeLoading = true; _feeBreakdown = null; });
+    try {
+      final result = await ref.read(apiRepositoryProvider).calculateExtension(widget.memberId, packageId);
+      if (mounted) setState(() => _feeBreakdown = result);
+    } catch (_) {
+      if (mounted) setState(() => _feeBreakdown = null);
+    } finally {
+      if (mounted) setState(() => _feeLoading = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (_selectedPkg == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih paket membership')));
@@ -60,10 +76,11 @@ class _RenewMemberScreenState extends ConsumerState<RenewMemberScreen> {
     }
     setState(() => _submitting = true);
     try {
-      // Use packageId + renew:true as per RN implementation
+      final pricePaid = _feeBreakdown != null ? (_feeBreakdown!['total'] as num).toInt() : null;
       await ref.read(apiRepositoryProvider).updateMember(widget.memberId, {
         'packageId': _selectedPkg,
         'renew': true,
+        if (pricePaid != null) 'pricePaid': pricePaid,
       });
       if (mounted) {
         ref.invalidate(memberDetailProvider(widget.memberId));
@@ -96,9 +113,17 @@ class _RenewMemberScreenState extends ConsumerState<RenewMemberScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('PILIH PAKET BARU', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
             const SizedBox(height: 12),
-            ..._packages.map((p) => _PkgTile(pkg: p, selected: _selectedPkg == p.id, onTap: () => setState(() => _selectedPkg = p.id))),
+            ..._packages.map((p) => _PkgTile(pkg: p, selected: _selectedPkg == p.id, onTap: () {
+              setState(() { _selectedPkg = p.id; _feeBreakdown = null; });
+              _fetchFeeBreakdown(p.id);
+            })),
           ]),
         ),
+        const SizedBox(height: 16),
+
+        // ── Fee Breakdown Card ─────────────────────────────────────────────
+        if (_selectedPkg != null) _buildFeeBreakdown(),
+
         const SizedBox(height: 20),
 
         SizedBox(height: 52, child: ElevatedButton(
@@ -108,6 +133,66 @@ class _RenewMemberScreenState extends ConsumerState<RenewMemberScreen> {
         const SizedBox(height: 40),
       ]),
     );
+  }
+
+  Widget _buildFeeBreakdown() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: _feeLoading
+          ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)))
+          : _feeBreakdown == null
+              ? const Text('Memuat rincian biaya...', style: TextStyle(color: AppColors.textMuted, fontSize: 13))
+              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('RINCIAN TAGIHAN', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                  const SizedBox(height: 12),
+
+                  // Package price
+                  _row('Harga Paket', _formatRupiah((_feeBreakdown!['packagePrice'] as num).toInt())),
+
+                  // Admin fee — only if > 0
+                  if ((_feeBreakdown!['adminFee'] as num) > 0)
+                    _row(
+                      'Biaya Admin (belum pernah bayar)',
+                      '+${_formatRupiah((_feeBreakdown!['adminFee'] as num).toInt())}',
+                      valueColor: AppColors.error,
+                    ),
+
+                  // Already paid badge
+                  if (_feeBreakdown!['alreadyPaidAdminFee'] == true)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Row(children: [
+                        Icon(Icons.check_circle_outline, color: Color(0xFF6EE7B7), size: 14),
+                        SizedBox(width: 4),
+                        Text('Biaya admin sudah pernah dibayar', style: TextStyle(color: Color(0xFF6EE7B7), fontSize: 12)),
+                      ]),
+                    ),
+
+                  const Divider(color: AppColors.border, height: 16),
+
+                  // Total
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    const Text('Total Tagihan ke Member', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                    Text(_formatRupiah((_feeBreakdown!['total'] as num).toInt()),
+                        style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 15)),
+                  ]),
+                ]),
+    );
+  }
+
+  String _formatRupiah(int amount) {
+    final str = amount.toString();
+    final buffer = StringBuffer('Rp ');
+    for (int i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(str[i]);
+    }
+    return buffer.toString();
   }
 
   Widget _infoCard(Member m) {
