@@ -145,7 +145,10 @@ class Member {
     bool dateExpired = false;
     try {
       final end = DateTime.parse(endDate);
-      dateExpired = end.isBefore(DateTime.now());
+      final today = DateTime.now();
+      final endDay = DateTime(end.year, end.month, end.day);
+      final todayDay = DateTime(today.year, today.month, today.day);
+      dateExpired = endDay.isBefore(todayDay);
     } catch (_) {}
     if (status.toLowerCase() == 'expired' || dateExpired) return 'Expired';
     return status;

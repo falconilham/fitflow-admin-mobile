@@ -273,7 +273,10 @@ class _MemberCard extends ConsumerWidget {
     bool dateExpired = false;
     try {
       final end = DateTime.parse(m.endDate);
-      dateExpired = end.isBefore(DateTime.now());
+      final today = DateTime.now();
+      final endDay = DateTime(end.year, end.month, end.day);
+      final todayDay = DateTime(today.year, today.month, today.day);
+      dateExpired = endDay.isBefore(todayDay);
     } catch (_) {}
     final isExpired = m.status.toLowerCase() == 'expired' || dateExpired;
     final isActive = m.status.toLowerCase() == 'active' && !isSuspended && !isExpired;

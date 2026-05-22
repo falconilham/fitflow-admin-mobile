@@ -566,8 +566,10 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
   String _daysLeftText(String endDateStr) {
     try {
       final end = DateTime.parse(endDateStr);
-      final now = DateTime.now();
-      final diff = end.difference(now).inDays;
+      final today = DateTime.now();
+      final endDay = DateTime(end.year, end.month, end.day);
+      final todayDay = DateTime(today.year, today.month, today.day);
+      final diff = endDay.difference(todayDay).inDays;
       if (diff < 0) return '';
       return '${diff}d left';
     } catch (_) {
@@ -577,7 +579,11 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
 
   bool _isExpired(String endDateStr) {
     try {
-      return DateTime.parse(endDateStr).isBefore(DateTime.now());
+      final end = DateTime.parse(endDateStr);
+      final today = DateTime.now();
+      final endDay = DateTime(end.year, end.month, end.day);
+      final todayDay = DateTime(today.year, today.month, today.day);
+      return endDay.isBefore(todayDay);
     } catch (_) {
       return false;
     }
