@@ -108,6 +108,9 @@ class Member {
   final bool hasVisitPackage;
   // Remaining trainer (PT) sessions from active TrainerPackages
   final int remainingPtSessions;
+  // Total & completed PT (TrainingSession) history
+  final int ptSessionTotal;
+  final int ptSessionCompleted;
 
   Member({
     required this.id,
@@ -135,6 +138,8 @@ class Member {
     this.sessionDuration,
     this.hasVisitPackage = false,
     this.remainingPtSessions = 0,
+    this.ptSessionTotal = 0,
+    this.ptSessionCompleted = 0,
   });
 
   bool get isArchived => status.toLowerCase() == 'deleted';
@@ -191,6 +196,8 @@ class Member {
       sessionDuration: (json['sessionDuration'] as num?)?.toInt(),
       hasVisitPackage: json['hasVisitPackage'] as bool? ?? false,
       remainingPtSessions: (json['remainingSessions'] as num?)?.toInt() ?? 0,
+      ptSessionTotal: (json['ptSessionTotal'] as num?)?.toInt() ?? 0,
+      ptSessionCompleted: (json['ptSessionCompleted'] as num?)?.toInt() ?? 0,
     );
   }
 }

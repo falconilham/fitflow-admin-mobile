@@ -870,6 +870,61 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
         ),
       ],
 
+      // ── PT Sessions history ─────────────────────────────────────
+      if (!isArchived && m.ptSessionTotal > 0) ...[
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('PT Sessions',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${m.ptSessionCompleted}',
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '/${m.ptSessionTotal} selesai',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (m.remainingPtSessions > 0) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Paket tersisa',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                Text('${m.remainingPtSessions} sesi',
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    )),
+              ],
+            ),
+          ),
+        ],
+      ],
+
       // ── Log Visit button (only for quota-based packages) ─────────
       if (!isArchived && isActive && !m.suspended && hasQuota) ...[
         const SizedBox(height: 20),

@@ -88,6 +88,23 @@ bool _isLocked(DateTime? scheduledAt, String status) {
   return scheduledAt.difference(DateTime.now()).inMinutes < 60;
 }
 
+bool _isMemberActive(Map<String, dynamic> m) {
+  final status = (m['status'] as String? ?? '').toLowerCase();
+  if (status == 'expired' || status == 'deleted') return false;
+  final endDate = m['endDate'] as String?;
+  if (endDate != null && endDate.isNotEmpty) {
+    try {
+      final end = DateTime.parse(endDate);
+      final today = DateTime.now();
+      if (DateTime(end.year, end.month, end.day)
+          .isBefore(DateTime(today.year, today.month, today.day))) {
+        return false;
+      }
+    } catch (_) {}
+  }
+  return true;
+}
+
 // ── Main Screen ────────────────────────────────────────────────────────────
 class SessionsScreen extends ConsumerStatefulWidget {
   const SessionsScreen({super.key});
@@ -1120,6 +1137,10 @@ class _SessionCard extends StatelessWidget {
     final s = session;
     final memberName =
         (s['member']?['name'] ?? s['memberName'] ?? 'Unknown').toString();
+    final additionalMembers = (s['additionalMembers'] as List?)
+        ?.map((m) => (m['name'] ?? '').toString())
+        .where((n) => n.isNotEmpty)
+        .toList() ?? [];
     final trainerName =
         (s['trainer']?['name'] ?? s['trainerName'] ?? '').toString();
     final specialty = (s['trainer']?['specialty'] ?? '').toString();
@@ -1134,6 +1155,8 @@ class _SessionCard extends StatelessWidget {
     final statusOpt = _statusForKey(status);
     final commission = (s['commissionRateSnapshot'] as num?)?.toInt() ??
         (s['trainer']?['commissionPercentage'] as num?)?.toInt();
+    final trainerShare = (s['trainerShare'] as num?)?.toDouble();
+    final gymShare = (s['gymShare'] as num?)?.toDouble();
     final isPackage = paymentMethod == 'Package' ||
         (s['trainerPackageId'] ?? 0) != 0;
     final locked = _isLocked(dt, status);
@@ -1184,6 +1207,14 @@ class _SessionCard extends StatelessWidget {
                                   fontSize: 15),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis),
+                          if (additionalMembers.isNotEmpty)
+                            Text(
+                              '+${additionalMembers.join(', ')}',
+                              style: const TextStyle(
+                                  color: AppColors.textMuted, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           if (trainerName.isNotEmpty)
                             Text(
                               'with $trainerName${specialty.isNotEmpty ? ' • $specialty' : ''}',
@@ -1250,6 +1281,18 @@ class _SessionCard extends StatelessWidget {
                         icon: Icons.percent_rounded,
                         text: '$commission% komisi',
                         color: const Color(0xFFA78BFA),
+                      ),
+                    if (status == 'completed' && trainerShare != null)
+                      _MetaPill(
+                        icon: Icons.person_rounded,
+                        text: formatCurrency(trainerShare),
+                        color: const Color(0xFF4ADE80),
+                      ),
+                    if (status == 'completed' && gymShare != null)
+                      _MetaPill(
+                        icon: Icons.store_rounded,
+                        text: formatCurrency(gymShare),
+                        color: const Color(0xFF60A5FA),
                       ),
                     if (locked)
                       const _MetaPill(
@@ -1476,6 +1519,7 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
   late final bool _isEdit;
 
   int? _memberId;
+  List<int> _additionalMemberIds = [];
   int? _trainerId;
   String _status = 'scheduled';
   DateTime? _scheduledAt;
@@ -1508,6 +1552,10 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
 
     if (e != null) {
       _memberId = (e['memberId'] ?? e['member']?['id']) as int?;
+      final rawExtra = e['additionalMemberIds'];
+      if (rawExtra is List) {
+        _additionalMemberIds = rawExtra.map((v) => (v as num).toInt()).toList();
+      }
       _trainerId = (e['trainerId'] ?? e['trainer']?['id']) as int?;
       _status = (e['status'] ?? 'scheduled').toString().toLowerCase();
       _originalStatus = _status;
@@ -1664,6 +1712,8 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
       final data = <String, dynamic>{
         'gymId': gymId,
         'memberId': _memberId,
+        if (_additionalMemberIds.isNotEmpty)
+          'additionalMemberIds': _additionalMemberIds,
         'trainerId': _trainerId,
         if (_scheduledAt != null)
           'scheduledAt': _scheduledAt!.toUtc().toIso8601String(),
@@ -1813,17 +1863,18 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
               const SizedBox(height: 12),
             ],
 
-            // Member dropdown
-            _fieldLabel('Member'),
+            // Member dropdown (active only — exclude Expired/Deleted)
+            _fieldLabel('Member (Aktif)'),
             _Dropdown<int>(
               value: _memberId,
               disabled: _isEdit,
               hint: 'Pilih Member',
               items: [
                 for (final m in widget.members)
-                  _DropdownItem(
-                      value: (m['id'] as num).toInt(),
-                      label: (m['name'] ?? 'Member').toString()),
+                  if (_isMemberActive(m))
+                    _DropdownItem(
+                        value: (m['id'] as num).toInt(),
+                        label: (m['name'] ?? 'Member').toString()),
               ],
               onChanged: (v) {
                 setState(() => _memberId = v);
@@ -1831,6 +1882,92 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
               },
             ),
             const SizedBox(height: 12),
+
+            // Additional Members (group session, max 3 extra = 4 total, create only)
+            if (!_isEdit) ...[
+              _fieldLabel(
+                  'Anggota Tambahan (maks 3, total ${1 + _additionalMemberIds.length}/4)'),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final id in _additionalMemberIds)
+                    Builder(builder: (ctx) {
+                      final m = widget.members.firstWhere(
+                        (m) => (m['id'] as num).toInt() == id,
+                        orElse: () => {'name': 'Member'},
+                      );
+                      return Chip(
+                        label: Text((m['name'] ?? 'Member').toString(),
+                            style: const TextStyle(fontSize: 12)),
+                        backgroundColor: AppColors.accent.withAlpha(30),
+                        labelStyle:
+                            const TextStyle(color: AppColors.accent),
+                        deleteIconColor: AppColors.textMuted,
+                        onDeleted: () => setState(() =>
+                            _additionalMemberIds.remove(id)),
+                      );
+                    }),
+                  if (_additionalMemberIds.length < 3)
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 16,
+                          color: AppColors.textMuted),
+                      label: const Text('Tambah',
+                          style: TextStyle(
+                              color: AppColors.textMuted, fontSize: 12)),
+                      backgroundColor: AppColors.surface,
+                      side: const BorderSide(color: AppColors.border),
+                      onPressed: () async {
+                        final activeMembers = widget.members
+                            .where((m) =>
+                                _isMemberActive(m) &&
+                                (m['id'] as num).toInt() != _memberId &&
+                                !_additionalMemberIds
+                                    .contains((m['id'] as num).toInt()))
+                            .toList();
+                        if (activeMembers.isEmpty) return;
+                        final picked = await showModalBottomSheet<int>(
+                          context: context,
+                          backgroundColor: AppColors.card,
+                          builder: (_) => ListView(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                child: Text('Pilih Member Tambahan',
+                                    style: TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 15)),
+                              ),
+                              for (final m in activeMembers)
+                                ListTile(
+                                  title: Text(
+                                      (m['name'] ?? 'Member').toString(),
+                                      style: const TextStyle(
+                                          color: AppColors.textPrimary)),
+                                  subtitle: Text(
+                                      (m['email'] ?? '').toString(),
+                                      style: const TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 12)),
+                                  onTap: () => Navigator.pop(
+                                      context,
+                                      (m['id'] as num).toInt()),
+                                ),
+                            ],
+                          ),
+                        );
+                        if (picked != null) {
+                          setState(() => _additionalMemberIds.add(picked));
+                        }
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Trainer dropdown
             _fieldLabel('Trainer'),
