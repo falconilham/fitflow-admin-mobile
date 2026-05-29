@@ -583,4 +583,26 @@ class ApiRepository {
       data: {'status': status},
     );
   }
+
+  // ── Announcements ────────────────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getAnnouncements() async {
+    final res = await _ref.read(dioProvider).get('/admin/announcements');
+    final data = res.data;
+    if (data is Map && data['data'] is List) {
+      return List<Map<String, dynamic>>.from(data['data'] as List);
+    }
+    return [];
+  }
+
+  Future<void> createAnnouncement(Map<String, dynamic> payload) async {
+    await _ref.read(dioProvider).post('/admin/announcements', data: payload);
+  }
+
+  Future<void> updateAnnouncement(int id, Map<String, dynamic> payload) async {
+    await _ref.read(dioProvider).put('/admin/announcements/$id', data: payload);
+  }
+
+  Future<void> deleteAnnouncement(int id) async {
+    await _ref.read(dioProvider).delete('/admin/announcements/$id');
+  }
 }

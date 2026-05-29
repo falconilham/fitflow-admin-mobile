@@ -33,6 +33,7 @@ import '../../features/classes/screens/classes_screen.dart';
 import '../../features/classes/screens/class_categories_screen.dart';
 import '../../features/classes/screens/add_edit_class_screen.dart';
 import '../../features/classes/screens/class_roster_screen.dart';
+import '../../features/announcements/screens/announcements_screen.dart';
 
 
 abstract class AppRoutes {
@@ -63,6 +64,8 @@ abstract class AppRoutes {
   static const classes = '/classes';
   static const classCategories = '/classes/categories';
   static const addClass = '/classes/add';
+  // Announcements
+  static const announcements = '/announcements';
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +149,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: AppRoutes.leaderboard, builder: (_, __) => const LeaderboardScreen()),
           GoRoute(path: AppRoutes.gymSettings, builder: (_, __) => const GymSettingsScreen()),
           GoRoute(path: AppRoutes.classes, builder: (_, __) => const ClassesScreen()),
+          GoRoute(path: AppRoutes.announcements, builder: (_, __) => const AnnouncementsScreen()),
         ],
       ),
 

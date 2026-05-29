@@ -216,7 +216,8 @@ class AppDrawerContent extends ConsumerWidget {
                 initiallyExpanded: location.contains(AppRoutes.managers) ||
                                    location.contains(AppRoutes.trainers) ||
                                    location.contains(AppRoutes.reports) ||
-                                   location.contains(AppRoutes.activity),
+                                   location.contains(AppRoutes.activity) ||
+                                   location.contains(AppRoutes.announcements),
                 children: [
                   _DrawerItem(
                     icon: Icons.admin_panel_settings_rounded,
@@ -250,6 +251,13 @@ class AppDrawerContent extends ConsumerWidget {
                     icon: Icons.history_rounded,
                     title: 'Activity',
                     route: AppRoutes.activity,
+                    isSubItem: true,
+                    isSidebar: isSidebar,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.campaign_rounded,
+                    title: 'Announcements',
+                    route: AppRoutes.announcements,
                     isSubItem: true,
                     isSidebar: isSidebar,
                   ),
