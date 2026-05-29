@@ -47,6 +47,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   int? _selectedPackageId;
   String _paymentMethod = 'Cash';
   List<MembershipPackage> _packages = [];
+  Member? _member;
 
   @override
   void initState() {
@@ -76,6 +77,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
       ];
       final results = await Future.wait(futures);
       final m = results[0] as Member;
+      _member = m;
       _nameCtrl.text = m.name;
       _emailCtrl.text = m.email;
       _phoneCtrl.text = m.phone ?? '';
@@ -210,6 +212,16 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
           ? _packages.firstWhere((p) => p.id == _selectedPackageId, orElse: () => _packages.first)
           : null;
 
+      // For expired/completed SESSION packages, send renew:true so the backend
+      // resets the session balance instead of stacking on top of the old quota.
+      final isSessionPkg = selectedPkg?.type == 'SESSION';
+      final memberExpired = _member != null &&
+          (_member!.status == 'Expired' ||
+           _member!.status == 'Completed' ||
+           (_member!.endDate.isNotEmpty &&
+            DateTime.tryParse(_member!.endDate)?.isBefore(DateTime.now()) == true));
+      final useRenew = _extendMode && isSessionPkg && memberExpired;
+
       await ref.read(apiRepositoryProvider).updateMember(widget.memberId, {
         'name': _nameCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
@@ -218,7 +230,8 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
         if (_memberIdCtrl.text.isNotEmpty) 'memberId': _memberIdCtrl.text.trim(),
         if (_base64Image != null) 'memberPhoto': _base64Image,
         'password': _changePasswordMode ? _passwordCtrl.text.trim() : null,
-        'extendDuration': _extendMode && selectedPkg != null ? selectedPkg.durationMonths : null,
+        if (useRenew) 'renew': true,
+        if (!useRenew) 'extendDuration': _extendMode && selectedPkg != null ? selectedPkg.durationMonths : null,
         'paymentMethod': _extendMode ? _paymentMethod : null,
         'packageId': _extendMode ? _selectedPackageId : null,
         'pricePaid': _extendMode && selectedPkg != null ? selectedPkg.price : null,
