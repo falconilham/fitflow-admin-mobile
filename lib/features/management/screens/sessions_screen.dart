@@ -344,7 +344,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     for (final s in list) {
       final status = (s['status'] ?? '').toString().toLowerCase();
       final dt = _parseDate(s['scheduledAt']);
-      if (dt != null && dt.isAfter(monthStart) && dt.isBefore(now)) {
+      if (dt != null &&
+          dt.isAfter(monthStart) &&
+          dt.isBefore(now) &&
+          status != 'unscheduled' &&
+          status != 'cancelled') {
         totalMTD++;
       }
       if (status == 'completed') {
@@ -1633,10 +1637,14 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
   }
 
   Future<void> _pickDateTime() async {
+    final initialDate = _scheduledAt ?? DateTime.now().add(const Duration(hours: 1));
+    final now = DateTime.now();
+    final firstDate = initialDate.isBefore(now) ? initialDate : now;
+
     final date = await showDatePicker(
       context: context,
-      initialDate: _scheduledAt ?? DateTime.now().add(const Duration(hours: 1)),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      initialDate: initialDate,
+      firstDate: firstDate,
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
@@ -1678,6 +1686,13 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
       _toast('Pilih waktu sesi');
       return;
     }
+    if (_status == 'scheduled' && _scheduledAt != null) {
+      final nowLimit = DateTime.now().subtract(const Duration(minutes: 5));
+      if (_scheduledAt!.isBefore(nowLimit)) {
+        _toast('Waktu sesi harus di masa depan');
+        return;
+      }
+    }
 
     // Reschedule reason check (only when editing scheduled session and time changed)
     final timeChanged = _isEdit &&
@@ -1715,8 +1730,7 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
         if (_additionalMemberIds.isNotEmpty)
           'additionalMemberIds': _additionalMemberIds,
         'trainerId': _trainerId,
-        if (_scheduledAt != null)
-          'scheduledAt': _scheduledAt!.toUtc().toIso8601String(),
+        'scheduledAt': (_scheduledAt ?? DateTime.now()).toUtc().toIso8601String(),
         'duration': _duration,
         'price': _price.toInt(),
         'paymentMethod': _paymentMethod,
@@ -1990,10 +2004,22 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
                   final tr = widget.trainers.firstWhere(
                       (t) => (t['id'] as num).toInt() == v,
                       orElse: () => {});
-                  _price = ((tr['singleSessionPrice'] ??
+                  double calculatedPrice = ((tr['singleSessionPrice'] ??
                           tr['single_session_price'] ??
                           0) as num)
                       .toDouble();
+                  if (_bookingType == 'single') {
+                    final tiersRaw = tr['singleSessionTiers'] ?? tr['single_session_tiers'];
+                    if (tiersRaw is String && tiersRaw.isNotEmpty) {
+                      try {
+                        final parsed = jsonDecode(tiersRaw);
+                        if (parsed is List && parsed.isNotEmpty) {
+                          calculatedPrice = ((parsed[0]['price'] ?? 0) as num).toDouble();
+                        }
+                      } catch (_) {}
+                    }
+                  }
+                  _price = calculatedPrice;
                 });
                 _loadPackages();
               },
@@ -2015,6 +2041,24 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
                             _bookingType = 'single';
                             _paymentMethod = 'Cash';
                             _existingPackageId = null;
+                            _status = 'scheduled';
+                            final tr = widget.trainers.firstWhere(
+                                (t) => (t['id'] as num).toInt() == _trainerId,
+                                orElse: () => {});
+                            double calculatedPrice = ((tr['singleSessionPrice'] ??
+                                    tr['single_session_price'] ??
+                                    0) as num)
+                                .toDouble();
+                            final tiersRaw = tr['singleSessionTiers'] ?? tr['single_session_tiers'];
+                            if (tiersRaw is String && tiersRaw.isNotEmpty) {
+                              try {
+                                final parsed = jsonDecode(tiersRaw);
+                                if (parsed is List && parsed.isNotEmpty) {
+                                  calculatedPrice = ((parsed[0]['price'] ?? 0) as num).toDouble();
+                                }
+                              } catch (_) {}
+                            }
+                            _price = calculatedPrice;
                           }),
                 )),
                 const SizedBox(width: 8),
@@ -2028,6 +2072,8 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
                       : (_) => setState(() {
                             _bookingType = 'package';
                             _paymentMethod = 'Package';
+                            _price = 0;
+                            _status = 'unscheduled';
                           }),
                 )),
               ],
@@ -2099,27 +2145,29 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
               const SizedBox(height: 12),
             ],
 
-            // Date & Time
-            _fieldLabel('Tanggal & Waktu'),
-            OutlinedButton.icon(
-              onPressed: _locked ? null : _pickDateTime,
-              icon: const Icon(Icons.event_rounded,
-                  color: AppColors.textMuted, size: 16),
-              label: Text(
-                _scheduledAt != null
-                    ? formatDateTime(_scheduledAt!.toIso8601String())
-                    : 'Pilih tanggal & waktu',
-                style: const TextStyle(
-                    color: AppColors.textPrimary, fontSize: 13),
+            if (_isEdit || _bookingType == 'single') ...[
+              // Date & Time
+              _fieldLabel('Tanggal & Waktu'),
+              OutlinedButton.icon(
+                onPressed: _locked ? null : _pickDateTime,
+                icon: const Icon(Icons.event_rounded,
+                    color: AppColors.textMuted, size: 16),
+                label: Text(
+                  _scheduledAt != null
+                      ? formatDateTime(_scheduledAt!.toIso8601String())
+                      : 'Pilih tanggal & waktu',
+                  style: const TextStyle(
+                      color: AppColors.textPrimary, fontSize: 13),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.border),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  alignment: Alignment.centerLeft,
+                ),
               ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.border),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                alignment: Alignment.centerLeft,
-              ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
 
             // Reschedule reason (only when scheduledAt of existing scheduled session changed)
             if (_isEdit && _originalStatus == 'scheduled' && timeChanged) ...[
