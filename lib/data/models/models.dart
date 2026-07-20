@@ -646,3 +646,38 @@ class ClassBooking {
     );
   }
 }
+
+class Equipment {
+  final int id;
+  final String name;
+  final String? brand;
+  final String category;
+  final String status;
+
+  const Equipment({
+    required this.id,
+    required this.name,
+    this.brand,
+    required this.category,
+    required this.status,
+  });
+
+  factory Equipment.fromJson(Map<String, dynamic> json) {
+    return Equipment(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      brand: json['brand'] as String?,
+      category: json['category'] as String? ?? 'General',
+      status: json['status'] as String? ?? 'Active',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'brand': brand,
+      'category': category,
+      'status': status,
+    };
+  }
+}

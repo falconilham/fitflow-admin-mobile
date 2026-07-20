@@ -215,6 +215,7 @@ class AppDrawerContent extends ConsumerWidget {
                 icon: Icons.settings_rounded,
                 initiallyExpanded: location.contains(AppRoutes.managers) ||
                                    location.contains(AppRoutes.trainers) ||
+                                   location.contains(AppRoutes.equipment) ||
                                    location.contains(AppRoutes.reports) ||
                                    location.contains(AppRoutes.activity) ||
                                    location.contains(AppRoutes.announcements),
@@ -236,7 +237,7 @@ class AppDrawerContent extends ConsumerWidget {
                   _DrawerItem(
                     icon: Icons.fitness_center_rounded,
                     title: 'Equipment',
-                    placeholder: true,
+                    route: AppRoutes.equipment,
                     isSubItem: true,
                     isSidebar: isSidebar,
                   ),

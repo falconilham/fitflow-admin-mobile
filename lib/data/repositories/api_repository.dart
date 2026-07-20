@@ -211,6 +211,37 @@ class ApiRepository {
     return list.map((e) => CheckInRecord.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  // ── Equipment ────────────────────────────────────────────────────────────
+  Future<List<Equipment>> getEquipment(int gymId, {int page = 1, int limit = 10}) async {
+    final res = await _ref.read(dioProvider).get('/admin/equipment', queryParameters: {
+      'gymId': gymId,
+      'page': page,
+      'limit': limit,
+    });
+    final data = res.data;
+    List<dynamic> rows;
+    if (data is List) {
+      rows = data;
+    } else if (data is Map) {
+      rows = data['data'] as List<dynamic>? ?? data['equipment'] as List<dynamic>? ?? [];
+    } else {
+      rows = [];
+    }
+    return rows.map((e) => Equipment.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> createEquipment(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post('/admin/equipment', data: {...data, 'gymId': gymId});
+  }
+
+  Future<void> updateEquipment(int id, int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).put('/admin/equipment/$id', data: {...data, 'gymId': gymId});
+  }
+
+  Future<void> deleteEquipment(int id) async {
+    await _ref.read(dioProvider).delete('/admin/equipment/$id');
+  }
+
   // Store — Products
   Future<List<Product>> getProducts(int gymId) async {
     final res = await _ref.read(dioProvider).get('/admin/products', queryParameters: {'gymId': gymId});
