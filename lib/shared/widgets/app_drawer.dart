@@ -218,7 +218,9 @@ class AppDrawerContent extends ConsumerWidget {
                                    location.contains(AppRoutes.equipment) ||
                                    location.contains(AppRoutes.reports) ||
                                    location.contains(AppRoutes.activity) ||
-                                   location.contains(AppRoutes.announcements),
+                                   location.contains(AppRoutes.announcements) ||
+                                   location.contains(AppRoutes.staffSchedules) ||
+                                   location.contains(AppRoutes.attendanceStats),
                 children: [
                   _DrawerItem(
                     icon: Icons.admin_panel_settings_rounded,
@@ -231,6 +233,20 @@ class AppDrawerContent extends ConsumerWidget {
                     icon: Icons.sports_rounded,
                     title: 'Trainers',
                     route: AppRoutes.trainers,
+                    isSubItem: true,
+                    isSidebar: isSidebar,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.schedule_rounded,
+                    title: 'Staff Schedules',
+                    route: AppRoutes.staffSchedules,
+                    isSubItem: true,
+                    isSidebar: isSidebar,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.pie_chart_rounded,
+                    title: 'Attendance Stats',
+                    route: AppRoutes.attendanceStats,
                     isSubItem: true,
                     isSidebar: isSidebar,
                   ),

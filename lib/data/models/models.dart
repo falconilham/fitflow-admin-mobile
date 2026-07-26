@@ -681,3 +681,109 @@ class Equipment {
     };
   }
 }
+
+class StaffSchedule {
+  final int id;
+  final String staffId;
+  final String staffName;
+  final String role;
+  final String dayOfWeek;
+  final String startTime;
+  final String endTime;
+
+  StaffSchedule({
+    required this.id,
+    required this.staffId,
+    required this.staffName,
+    required this.role,
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  factory StaffSchedule.fromJson(Map<String, dynamic> json) {
+    return StaffSchedule(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      staffId: json['staffId']?.toString() ?? '',
+      staffName: json['staffName'] as String? ?? '',
+      role: json['role'] as String? ?? '',
+      dayOfWeek: json['dayOfWeek'] as String? ?? '',
+      startTime: json['startTime'] as String? ?? '',
+      endTime: json['endTime'] as String? ?? '',
+    );
+  }
+}
+
+class PieChartData {
+  final String name;
+  final int value;
+  final String color;
+
+  PieChartData({required this.name, required this.value, required this.color});
+
+  factory PieChartData.fromJson(Map<String, dynamic> json) {
+    return PieChartData(
+      name: json['name'] as String? ?? '',
+      value: (json['value'] as num?)?.toInt() ?? 0,
+      color: json['color'] as String? ?? '#888888',
+    );
+  }
+}
+
+class LineChartData {
+  final String date;
+  final int checkIns;
+
+  LineChartData({required this.date, required this.checkIns});
+
+  factory LineChartData.fromJson(Map<String, dynamic> json) {
+    return LineChartData(
+      date: json['date'] as String? ?? '',
+      checkIns: (json['checkIns'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class AttendanceStats {
+  final int totalCheckIns;
+  final int onTimeCount;
+  final int lateCount;
+  final List<PieChartData> pieChartData;
+  final List<LineChartData> lineChartData;
+
+  AttendanceStats({
+    required this.totalCheckIns,
+    required this.onTimeCount,
+    required this.lateCount,
+    required this.pieChartData,
+    required this.lineChartData,
+  });
+
+  factory AttendanceStats.fromJson(Map<String, dynamic> json) {
+    return AttendanceStats(
+      totalCheckIns: (json['totalCheckIns'] as num?)?.toInt() ?? 0,
+      onTimeCount: (json['onTimeCount'] as num?)?.toInt() ?? 0,
+      lateCount: (json['lateCount'] as num?)?.toInt() ?? 0,
+      pieChartData: (json['pieChartData'] as List?)?.map((e) => PieChartData.fromJson(e as Map<String, dynamic>)).toList() ?? [],
+      lineChartData: (json['lineChartData'] as List?)?.map((e) => LineChartData.fromJson(e as Map<String, dynamic>)).toList() ?? [],
+    );
+  }
+}
+
+class StaffInfo {
+  final String id;
+  final String name;
+  final String role;
+  final String? email;
+
+  StaffInfo({required this.id, required this.name, required this.role, this.email});
+
+  factory StaffInfo.fromJson(Map<String, dynamic> json) {
+    return StaffInfo(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      role: json['role'] as String? ?? '',
+      email: json['email'] as String?,
+    );
+  }
+}

@@ -636,4 +636,37 @@ class ApiRepository {
   Future<void> deleteAnnouncement(int id) async {
     await _ref.read(dioProvider).delete('/admin/announcements/$id');
   }
+
+  // Staff Attendance
+  Future<List<StaffSchedule>> getStaffAttendanceSchedules(int gymId) async {
+    final res = await _ref.read(dioProvider).get('/attendance/schedule', queryParameters: {'gymId': gymId});
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => StaffSchedule.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> createStaffSchedule(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post('/attendance/schedule', data: {...data, 'gymId': gymId});
+  }
+
+  Future<void> deleteStaffSchedule(int scheduleId) async {
+    await _ref.read(dioProvider).delete('/attendance/schedule/$scheduleId');
+  }
+
+  Future<AttendanceStats> getAttendanceStatistics(int gymId, {String? startDate, String? endDate, String? staffId}) async {
+    final res = await _ref.read(dioProvider).get('/attendance/statistics', queryParameters: {
+      'gymId': gymId,
+      if (startDate != null) 'startDate': startDate,
+      if (endDate != null) 'endDate': endDate,
+      if (staffId != null) 'staffId': staffId,
+    });
+    return AttendanceStats.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<List<StaffInfo>> getStaffMembers(int gymId) async {
+    final res = await _ref.read(dioProvider).get('/attendance/staff', queryParameters: {'gymId': gymId});
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => StaffInfo.fromJson(e as Map<String, dynamic>)).toList();
+  }
 }

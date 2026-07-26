@@ -35,6 +35,8 @@ import '../../features/classes/screens/add_edit_class_screen.dart';
 import '../../features/classes/screens/class_roster_screen.dart';
 import '../../features/announcements/screens/announcements_screen.dart';
 import '../../features/management/screens/equipment_screen.dart';
+import '../../features/attendance/screens/staff_schedule_screen.dart';
+import '../../features/attendance/screens/attendance_statistics_screen.dart';
 
 abstract class AppRoutes {
   static const splash = '/';
@@ -59,6 +61,8 @@ abstract class AppRoutes {
   static const activity = '/activity';
   static const reports = '/reports';
   static const equipment = '/equipment';
+  static const staffSchedules = '/staff-schedules';
+  static const attendanceStats = '/attendance-stats';
   static const leaderboard = '/leaderboard';
   static const gymSettings = '/settings/gym';
   // Group Classes
@@ -148,6 +152,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: AppRoutes.activity,  builder: (_, __) => const ActivityScreen()),
           GoRoute(path: AppRoutes.reports,   builder: (_, __) => const ReportsScreen()),
           GoRoute(path: AppRoutes.equipment, builder: (_, __) => const EquipmentScreen()),
+          GoRoute(path: AppRoutes.staffSchedules, builder: (_, __) => const StaffSchedulesScreen()),
+          GoRoute(path: AppRoutes.attendanceStats, builder: (_, __) => const AttendanceStatisticsScreen()),
           GoRoute(path: AppRoutes.leaderboard, builder: (_, __) => const LeaderboardScreen()),
           GoRoute(path: AppRoutes.gymSettings, builder: (_, __) => const GymSettingsScreen()),
           GoRoute(path: AppRoutes.classes, builder: (_, __) => const ClassesScreen()),
