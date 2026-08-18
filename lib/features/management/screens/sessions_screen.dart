@@ -1154,6 +1154,7 @@ class _SessionCard extends StatelessWidget {
     final paymentMethod = (s['paymentMethod'] ?? '').toString();
     final notes = (s['notes'] ?? '').toString();
     final rescheduleReason = (s['rescheduleReason'] ?? '').toString();
+    final plannedExerciseLogRaw = s['plannedExerciseLog'];
     final exerciseLogRaw = s['exerciseLog'];
     final status = (s['status'] ?? 'scheduled').toString().toLowerCase();
     final statusOpt = _statusForKey(status);
@@ -1164,6 +1165,16 @@ class _SessionCard extends StatelessWidget {
     final isPackage = paymentMethod == 'Package' ||
         (s['trainerPackageId'] ?? 0) != 0;
     final locked = _isLocked(dt, status);
+
+    Map<String, dynamic>? plannedExerciseLog;
+    if (plannedExerciseLogRaw is String && plannedExerciseLogRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(plannedExerciseLogRaw);
+        if (decoded is Map<String, dynamic>) plannedExerciseLog = decoded;
+      } catch (_) {}
+    } else if (plannedExerciseLogRaw is Map<String, dynamic>) {
+      plannedExerciseLog = plannedExerciseLogRaw;
+    }
 
     Map<String, dynamic>? exerciseLog;
     if (exerciseLogRaw is String && exerciseLogRaw.isNotEmpty) {
@@ -1339,6 +1350,50 @@ class _SessionCard extends StatelessWidget {
                           color: AppColors.textMuted,
                           fontSize: 12,
                           fontStyle: FontStyle.italic)),
+                ],
+                if (plannedExerciseLog != null && plannedExerciseLog.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('PLANNED EXERCISE',
+                            style: TextStyle(
+                                color: Color(0xFF60A5FA),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5)),
+                        const SizedBox(height: 4),
+                        for (final entry in plannedExerciseLog.entries)
+                          if (entry.value != null &&
+                              entry.value.toString().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 12),
+                                  children: [
+                                    TextSpan(
+                                      text: '${entry.key}: ',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                    TextSpan(text: entry.value.toString()),
+                                  ],
+                                ),
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
                 ],
                 if (exerciseLog != null && exerciseLog.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -1578,8 +1633,9 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
       _customCommission =
           (e['commissionRateSnapshot'] as num?)?.toInt();
 
-      // Parse exerciseLog
+      // Parse exerciseLog or fallback to plannedExerciseLog
       final exerciseRaw = e['exerciseLog'];
+      final plannedRaw = e['plannedExerciseLog'];
       Map<String, dynamic>? exerciseLog;
       if (exerciseRaw is String && exerciseRaw.isNotEmpty) {
         try {
@@ -1588,6 +1644,16 @@ class _SessionFormSheetState extends ConsumerState<_SessionFormSheet> {
         } catch (_) {}
       } else if (exerciseRaw is Map<String, dynamic>) {
         exerciseLog = exerciseRaw;
+      }
+      if (exerciseLog == null || ((exerciseLog['warmup'] ?? '').toString().isEmpty && (exerciseLog['mainLift'] ?? '').toString().isEmpty && (exerciseLog['accessory'] ?? '').toString().isEmpty)) {
+        if (plannedRaw is String && plannedRaw.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(plannedRaw);
+            if (decoded is Map<String, dynamic>) exerciseLog = decoded;
+          } catch (_) {}
+        } else if (plannedRaw is Map<String, dynamic>) {
+          exerciseLog = plannedRaw;
+        }
       }
       if (exerciseLog != null) {
         _warmupCtrl.text = (exerciseLog['warmup'] ?? '').toString();
