@@ -93,25 +93,25 @@ class AppTheme {
         style: TextButton.styleFrom(foregroundColor: AppColors.accent),
       ),
       dividerTheme: const DividerThemeData(color: AppColors.border, thickness: 1),
-      fontFamily: GoogleFonts.inter().fontFamily,
+      fontFamily: GoogleFonts.outfit().fontFamily,
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.inter(
+        displayLarge: GoogleFonts.outfit(
           fontSize: 32,
           fontWeight: FontWeight.w900,
           color: AppColors.textPrimary,
           letterSpacing: -1.0,
         ),
-        displayMedium: GoogleFonts.inter(
+        displayMedium: GoogleFonts.outfit(
           fontSize: 24,
           fontWeight: FontWeight.w800,
           color: AppColors.textPrimary,
           letterSpacing: -0.5,
         ),
-        bodyLarge: GoogleFonts.inter(
+        bodyLarge: GoogleFonts.outfit(
           fontSize: 16,
           color: AppColors.textPrimary,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: GoogleFonts.outfit(
           fontSize: 14,
           color: AppColors.textSecondary,
         ),

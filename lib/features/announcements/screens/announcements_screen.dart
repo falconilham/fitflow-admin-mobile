@@ -8,7 +8,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/api_repository.dart';
-import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
 import '../../../shared/utils/error_handler.dart';
 
@@ -20,8 +19,9 @@ final _announcementsProvider =
   try {
     return await ref.read(apiRepositoryProvider).getAnnouncements();
   } on DioException catch (e) {
-    if (e.response?.statusCode == 403 || e.response?.statusCode == 404)
+    if (e.response?.statusCode == 403 || e.response?.statusCode == 404) {
       return [];
+    }
     rethrow;
   }
 });
@@ -124,8 +124,10 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
           _imagePreviewUrl = null;
           _imageUrlCtrl.clear();
         });
-        Navigator.of(context).pop(); // close source picker if open
-        _showDialog(); // re-show main dialog
+        if (mounted) {
+          Navigator.of(context).pop(); // close source picker if open
+          _showDialog(); // re-show main dialog
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -271,7 +273,11 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     );
     if (picked != null) {
       setModalState(() {
-        if (isStart) _startDate = picked; else _endDate = picked;
+        if (isStart) {
+          _startDate = picked;
+        } else {
+          _endDate = picked;
+        }
       });
     }
   }
@@ -465,7 +471,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     value: _isActive,
                     onChanged: (v) => setModalState(() => _isActive = v),
                     title: const Text('Active (visible to members)', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                    activeColor: AppColors.accent,
+                    activeThumbColor: AppColors.accent,
                     contentPadding: EdgeInsets.zero,
                   ),
                   const SizedBox(height: 16),

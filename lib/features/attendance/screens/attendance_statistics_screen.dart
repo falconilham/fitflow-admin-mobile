@@ -35,7 +35,7 @@ class AttendanceStatisticsScreen extends ConsumerWidget {
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                         dropdownColor: AppColors.card,
-                        value: filters['staffId'] as String?,
+                        initialValue: filters['staffId'] as String?,
                         items: [
                           const DropdownMenuItem(value: null, child: Text('All Staff', style: TextStyle(color: AppColors.textPrimary))),
                           ...staff.map((s) => DropdownMenuItem(
@@ -105,7 +105,7 @@ class AttendanceStatisticsScreen extends ConsumerWidget {
                               gridData: FlGridData(
                                 show: true,
                                 drawVerticalLine: false,
-                                getDrawingHorizontalLine: (value) => FlLine(color: AppColors.border, strokeWidth: 1),
+                                getDrawingHorizontalLine: (value) => const FlLine(color: AppColors.border, strokeWidth: 1),
                               ),
                               titlesData: FlTitlesData(
                                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -150,7 +150,7 @@ class AttendanceStatisticsScreen extends ConsumerWidget {
                                   dotData: const FlDotData(show: true),
                                   belowBarData: BarAreaData(
                                     show: true,
-                                    color: AppColors.accent.withOpacity(0.2),
+                                    color: AppColors.accent.withValues(alpha: 0.2),
                                   ),
                                 ),
                               ],

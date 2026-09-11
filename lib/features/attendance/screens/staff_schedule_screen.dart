@@ -30,7 +30,7 @@ class StaffSchedulesScreen extends ConsumerWidget {
           }
 
           // Group by day of week
-          final days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+          final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
           final grouped = <String, List<StaffSchedule>>{};
           for (final d in days) {
             grouped[d] = [];
@@ -150,7 +150,7 @@ class _AddScheduleFormState extends ConsumerState<_AddScheduleForm> {
   TimeOfDay? endTime;
   bool loading = false;
 
-  final days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   Future<void> _submit() async {
     if (selectedStaffId == null || selectedDay == null || startTime == null || endTime == null) {
@@ -160,9 +160,9 @@ class _AddScheduleFormState extends ConsumerState<_AddScheduleForm> {
     final gymId = ref.read(authProvider).valueOrNull?.activeGymId;
     if (gymId == null) return;
 
-    final formatTime = (TimeOfDay t) {
+    String formatTime(TimeOfDay t) {
       return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-    };
+    }
 
     setState(() => loading = true);
     try {
@@ -175,7 +175,9 @@ class _AddScheduleFormState extends ConsumerState<_AddScheduleForm> {
       ref.invalidate(staffSchedulesProvider);
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e)), backgroundColor: AppColors.error));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ErrorHandler.parse(e)), backgroundColor: AppColors.error));
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -199,7 +201,7 @@ class _AddScheduleFormState extends ConsumerState<_AddScheduleForm> {
             error: (e, _) => Text('Failed to load staff: ${ErrorHandler.parse(e)}', style: const TextStyle(color: AppColors.error)),
             data: (staffList) {
               return DropdownButtonFormField<String>(
-                value: selectedStaffId,
+                initialValue: selectedStaffId,
                 dropdownColor: AppColors.card,
                 items: staffList.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name, style: const TextStyle(color: AppColors.textPrimary)))).toList(),
                 onChanged: (v) => setState(() => selectedStaffId = v),
@@ -210,7 +212,7 @@ class _AddScheduleFormState extends ConsumerState<_AddScheduleForm> {
           const SizedBox(height: 16),
           
           DropdownButtonFormField<String>(
-            value: selectedDay,
+            initialValue: selectedDay,
             dropdownColor: AppColors.card,
             items: days.map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(color: AppColors.textPrimary)))).toList(),
             onChanged: (v) => setState(() => selectedDay = v),

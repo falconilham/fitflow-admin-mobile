@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../shared/widgets/custom_app_bar.dart';
+import '../../../shared/widgets/custom_app_bar.dart';
 
 class FaceScanScreen extends StatefulWidget {
+  const FaceScanScreen({super.key});
+
   @override
-  _FaceScanScreenState createState() => _FaceScanScreenState();
+  State<FaceScanScreen> createState() => _FaceScanScreenState();
 }
 
 class _FaceScanScreenState extends State<FaceScanScreen> {
@@ -17,7 +19,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       _statusMessage = 'Memproses landmark wajah...';
     });
 
-    Future.delayed(Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
           _isProcessing = false;
@@ -25,10 +27,10 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Check-in Berhasil!'),
             backgroundColor: Colors.green,
-          )
+          ),
         );
       }
     });
@@ -37,7 +39,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(title: 'Face Recognition Scanner'),
+      appBar: const CustomAppBar(title: 'Face Recognition Scanner'),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -48,7 +50,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
               child: Icon(
                 Icons.face_retouching_natural, 
                 size: 120, 
-                color: Colors.white.withOpacity(0.3)
+                color: Colors.white.withValues(alpha: 0.3),
               ),
             ),
           ),
@@ -63,7 +65,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                   color: _isProcessing ? Colors.blue : Colors.green,
                   width: 3,
                 ),
-                borderRadius: BorderRadius.all(Radius.elliptical(140, 190)),
+                borderRadius: const BorderRadius.all(Radius.elliptical(140, 190)),
               ),
             ),
           ),
@@ -82,25 +84,25 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (_isProcessing) 
-                      CircularProgressIndicator() 
+                      const CircularProgressIndicator() 
                     else 
-                      Icon(Icons.center_focus_strong, color: Colors.green, size: 32),
-                    SizedBox(height: 12),
+                      const Icon(Icons.center_focus_strong, color: Colors.green, size: 32),
+                    const SizedBox(height: 12),
                     Text(
                       _statusMessage,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _isProcessing ? null : _onFaceDetected,
-                      child: Text('Simulasi Pindai Wajah'),
-                    )
+                      child: const Text('Simulasi Pindai Wajah'),
+                    ),
                   ],
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );

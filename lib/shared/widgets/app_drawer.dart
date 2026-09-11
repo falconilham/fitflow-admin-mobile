@@ -359,6 +359,7 @@ class _DrawerItem extends StatelessWidget {
     required this.icon,
     required this.title,
     this.route,
+    // ignore: unused_element_parameter
     this.placeholder = false,
     this.isSubItem = false,
     this.isSidebar = false,

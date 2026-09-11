@@ -94,7 +94,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: _status,
+                initialValue: _status,
                 items: const [
                   DropdownMenuItem(value: 'Active', child: Text('Active')),
                   DropdownMenuItem(value: 'Broken', child: Text('Broken')),

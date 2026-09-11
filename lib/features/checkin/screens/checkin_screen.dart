@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -140,29 +141,58 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
   }
 
   void _showResult(bool granted, bool checkout, String name, String message) {
+    int countdown = 3;
+    Timer? timer;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: Text(
-          granted ? (checkout ? '✅ Check-out Berhasil' : '✅ Check-in Berhasil') : '❌ Ditolak',
-          style: TextStyle(color: granted ? AppColors.success : AppColors.error),
-        ),
-        content: Text('$name: $message', style: const TextStyle(color: AppColors.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              if (mounted && _tab == 'scan') {
-                _cameraCtrl.start();
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            timer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (countdown > 1) {
+                if (dialogCtx.mounted) {
+                  setDialogState(() {
+                    countdown--;
+                  });
+                }
+              } else {
+                t.cancel();
+                if (dialogCtx.mounted) {
+                  Navigator.pop(ctx);
+                  if (mounted && _tab == 'scan') {
+                    _cameraCtrl.start();
+                  }
+                }
               }
-            },
-            child: const Text('OK'),
-          )
-        ],
-      ),
-    );
+            });
+
+            return AlertDialog(
+              backgroundColor: AppColors.card,
+              title: Text(
+                granted ? (checkout ? '✅ Check-out Berhasil' : '✅ Check-in Berhasil') : '❌ Ditolak',
+                style: TextStyle(color: granted ? AppColors.success : AppColors.error),
+              ),
+              content: Text('$name: $message', style: const TextStyle(color: AppColors.textSecondary)),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    timer?.cancel();
+                    Navigator.pop(ctx);
+                    if (mounted && _tab == 'scan') {
+                      _cameraCtrl.start();
+                    }
+                  },
+                  child: Text('OK (${countdown}s)'),
+                )
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      timer?.cancel();
+    });
   }
 
   @override

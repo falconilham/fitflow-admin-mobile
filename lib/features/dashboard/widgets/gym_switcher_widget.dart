@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../core/utils/auth_utils.dart';
+import '../../../core/utils/auth_utils.dart';
 
 class GymSwitcherWidget extends StatefulWidget {
+  const GymSwitcherWidget({super.key});
+
   @override
-  _GymSwitcherWidgetState createState() => _GymSwitcherWidgetState();
+  State<GymSwitcherWidget> createState() => _GymSwitcherWidgetState();
 }
 
 class _GymSwitcherWidgetState extends State<GymSwitcherWidget> {
@@ -21,6 +23,7 @@ class _GymSwitcherWidgetState extends State<GymSwitcherWidget> {
     // In a real implementation, this would fetch from an API
     // For now, we simulate fetching the list of gyms the owner manages
     final current = await AuthUtils.getGymId();
+    if (!mounted) return;
     setState(() {
       _currentGymId = current;
       _availableGyms = [
@@ -35,12 +38,13 @@ class _GymSwitcherWidgetState extends State<GymSwitcherWidget> {
   Future<void> _switchGym(String newGymId) async {
     // Logic to clear local state and reload app with new gym id
     await AuthUtils.setGymId(newGymId);
+    if (!mounted) return;
     setState(() {
       _currentGymId = newGymId;
     });
     
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Beralih ke cabang baru...'))
+      const SnackBar(content: Text('Beralih ke cabang baru...'))
     );
     
     // Navigator.pushAndRemoveUntil(...) to reload dashboard
@@ -48,10 +52,10 @@ class _GymSwitcherWidgetState extends State<GymSwitcherWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return CircularProgressIndicator();
+    if (_isLoading) return const CircularProgressIndicator();
 
     return PopupMenuButton<String>(
-      icon: Icon(Icons.store),
+      icon: const Icon(Icons.store),
       tooltip: 'Pindah Cabang Gym',
       onSelected: _switchGym,
       itemBuilder: (BuildContext context) {
@@ -65,7 +69,7 @@ class _GymSwitcherWidgetState extends State<GymSwitcherWidget> {
                   color: gym['id'] == _currentGymId ? Colors.green : Colors.grey,
                   size: 20,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(gym['name']),
               ],
             ),
