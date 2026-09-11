@@ -471,6 +471,17 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
 
   Future<void> _logVisit() async {
     final m = widget.member;
+    final isExpired = _isExpired(m.endDate) || m.status.toLowerCase() == 'expired';
+    if (m.isArchived || m.suspended || isExpired || m.status.toLowerCase() != 'active') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak dapat mencatat kunjungan: Status membership sudah kadaluarsa atau tidak aktif.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final defaultDuration =
         (m.sessionDuration ?? 0) > 0 ? m.sessionDuration : null;
 
