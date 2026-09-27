@@ -212,12 +212,13 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
           ? _packages.firstWhere((p) => p.id == _selectedPackageId, orElse: () => _packages.first)
           : null;
 
-      // For expired/completed SESSION packages, send renew:true so the backend
+      // For expired/completed/depleted SESSION packages, send renew:true so the backend
       // resets the session balance instead of stacking on top of the old quota.
       final isSessionPkg = selectedPkg?.type == 'SESSION';
       final memberExpired = _member != null &&
           (_member!.status == 'Expired' ||
            _member!.status == 'Completed' ||
+           (_member!.remainingSessions != null && _member!.remainingSessions! <= 0) ||
            (_member!.endDate.isNotEmpty &&
             DateTime.tryParse(_member!.endDate)?.isBefore(DateTime.now()) == true));
       final useRenew = _extendMode && isSessionPkg && memberExpired;
