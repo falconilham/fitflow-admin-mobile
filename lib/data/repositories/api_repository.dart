@@ -669,4 +669,35 @@ class ApiRepository {
     if (data is! List) return [];
     return data.map((e) => StaffInfo.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  // Notifications
+  Future<List<InAppNotification>> getNotifications({int? gymId}) async {
+    final res = await _ref.read(dioProvider).get('/admin/notifications', queryParameters: {
+      if (gymId != null) 'gymId': gymId,
+    });
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => InAppNotification.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<bool> markNotificationAsRead(int id) async {
+    try {
+      await _ref.read(dioProvider).put('/admin/notifications/$id/read');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> markAllNotificationsAsRead({int? gymId}) async {
+    try {
+      await _ref.read(dioProvider).put('/admin/notifications/read-all', queryParameters: {
+        if (gymId != null) 'gymId': gymId,
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }
+

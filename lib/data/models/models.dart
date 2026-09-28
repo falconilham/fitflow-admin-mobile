@@ -787,3 +787,61 @@ class StaffInfo {
     );
   }
 }
+
+class InAppNotification {
+  final int id;
+  final int gymId;
+  final int? userId;
+  final int? adminId;
+  final String title;
+  final String message;
+  final bool isRead;
+  final String? type;
+  final String? link;
+  final DateTime? createdAt;
+
+  InAppNotification({
+    required this.id,
+    required this.gymId,
+    this.userId,
+    this.adminId,
+    required this.title,
+    required this.message,
+    required this.isRead,
+    this.type,
+    this.link,
+    this.createdAt,
+  });
+
+  factory InAppNotification.fromJson(Map<String, dynamic> json) {
+    return InAppNotification(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      gymId: (json['gymId'] as num?)?.toInt() ?? 0,
+      userId: (json['userId'] as num?)?.toInt(),
+      adminId: (json['adminId'] as num?)?.toInt(),
+      title: json['title'] as String? ?? 'Notifikasi',
+      message: json['message'] as String? ?? '',
+      isRead: json['isRead'] == true || json['isRead'] == 1,
+      type: json['type'] as String?,
+      link: json['link'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+    );
+  }
+
+  InAppNotification copyWith({bool? isRead}) {
+    return InAppNotification(
+      id: id,
+      gymId: gymId,
+      userId: userId,
+      adminId: adminId,
+      title: title,
+      message: message,
+      isRead: isRead ?? this.isRead,
+      type: type,
+      link: link,
+      createdAt: createdAt,
+    );
+  }
+}

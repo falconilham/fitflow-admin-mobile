@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/notifications/providers/notifications_provider.dart';
 
 import '../../shared/widgets/fitflow_logo.dart';
 
@@ -103,6 +104,34 @@ class AppDrawerContent extends ConsumerWidget {
                 title: 'Dashboard',
                 route: AppRoutes.dashboard,
                 isSidebar: isSidebar,
+              ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final unread = ref.watch(unreadNotificationsCountProvider);
+                  return _DrawerItem(
+                    icon: Icons.notifications_rounded,
+                    title: 'Notifikasi',
+                    route: AppRoutes.notifications,
+                    isSidebar: isSidebar,
+                    trailing: unread > 0
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.error,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              unread > 99 ? '99+' : unread.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        : null,
+                  );
+                },
               ),
               
               // OPERATIONS
@@ -354,6 +383,7 @@ class _DrawerItem extends StatelessWidget {
   final bool placeholder;
   final bool isSubItem;
   final bool isSidebar;
+  final Widget? trailing;
 
   const _DrawerItem({
     required this.icon,
@@ -363,6 +393,7 @@ class _DrawerItem extends StatelessWidget {
     this.placeholder = false,
     this.isSubItem = false,
     this.isSidebar = false,
+    this.trailing,
   });
 
   @override
@@ -373,6 +404,7 @@ class _DrawerItem extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.only(left: isSubItem ? 42 : 20, right: 20),
       dense: isSubItem,
+      trailing: trailing,
       leading: Icon(
         icon,
         size: isSubItem ? 20 : 22,

@@ -34,6 +34,7 @@ import '../../features/classes/screens/class_categories_screen.dart';
 import '../../features/classes/screens/add_edit_class_screen.dart';
 import '../../features/classes/screens/class_roster_screen.dart';
 import '../../features/announcements/screens/announcements_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/management/screens/equipment_screen.dart';
 import '../../features/attendance/screens/staff_schedule_screen.dart';
 import '../../features/attendance/screens/attendance_statistics_screen.dart';
@@ -71,6 +72,8 @@ abstract class AppRoutes {
   static const addClass = '/classes/add';
   // Announcements
   static const announcements = '/announcements';
+  // Notifications
+  static const notifications = '/notifications';
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +161,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: AppRoutes.gymSettings, builder: (_, __) => const GymSettingsScreen()),
           GoRoute(path: AppRoutes.classes, builder: (_, __) => const ClassesScreen()),
           GoRoute(path: AppRoutes.announcements, builder: (_, __) => const AnnouncementsScreen()),
+          GoRoute(path: AppRoutes.notifications, builder: (_, __) => const NotificationsScreen()),
         ],
       ),
 

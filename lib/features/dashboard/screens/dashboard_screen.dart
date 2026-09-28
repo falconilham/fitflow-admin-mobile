@@ -10,6 +10,7 @@ import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/utils/format.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
 import '../../../shared/utils/error_handler.dart';
+import '../../notifications/providers/notifications_provider.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
 
@@ -96,9 +97,47 @@ class DashboardScreen extends ConsumerWidget {
         backgroundColor: AppColors.surface,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textMuted),
-            onPressed: () {},
+          Consumer(
+            builder: (context, ref, _) {
+              final unreadCount = ref.watch(unreadNotificationsCountProvider);
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      unreadCount > 0
+                          ? Icons.notifications_active_rounded
+                          : Icons.notifications_none_rounded,
+                      color: unreadCount > 0 ? AppColors.accent : AppColors.textMuted,
+                    ),
+                    onPressed: () => context.push(AppRoutes.notifications),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.error,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.surface, width: 1.5),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -109,6 +148,7 @@ class DashboardScreen extends ConsumerWidget {
           ref.invalidate(dashboardStatsProvider);
           ref.invalidate(recentCheckInsProvider);
           ref.invalidate(myGymsProvider);
+          ref.invalidate(notificationsProvider);
         },
         child: ListView(
           padding: EdgeInsets.zero,
