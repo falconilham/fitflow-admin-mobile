@@ -16,6 +16,6 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: FitFlowAdminApp()));
 
     // Verify that the title is present (smoke test).
-    expect(find.text('FitFlow Admin'), findsOneWidget);
+    expect(find.text('ADMIN PANEL'), findsOneWidget);
   });
 }

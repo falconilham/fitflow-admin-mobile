@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
@@ -19,11 +18,15 @@ class CheckInScreen extends ConsumerStatefulWidget {
 
 class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindingObserver {
   final _searchCtrl = TextEditingController();
-  final _cameraCtrl = MobileScannerController();
-  String _tab = 'manual'; // 'manual' | 'scan'
+  MobileScannerController _cameraCtrl = MobileScannerController(
+    autoStart: true,
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+  String _tab = 'scan'; // 'scan' | 'manual' — default to QR scan as primary check-in interface
   List<Member> _members = [];
   bool _searching = false;
   bool _isScanning = false;
+  bool _isStartingCamera = false;
   final Map<int, bool> _checkingIn = {};
 
   @override
@@ -36,18 +39,59 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _searchCtrl.dispose();
-    _cameraCtrl.stop();
     _cameraCtrl.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      _cameraCtrl.stop();
-    } else if (state == AppLifecycleState.resumed && _tab == 'scan') {
-      _cameraCtrl.start();
+    // Only stop when app is paused/sent to background.
+    // NOTE: Permission popups trigger AppLifecycleState.inactive,
+    // so do NOT stop the camera on inactive.
+    if (!_cameraCtrl.value.isInitialized) {
+      return;
     }
+
+    if (state == AppLifecycleState.paused) {
+      _stopCamera();
+    } else if (state == AppLifecycleState.resumed && _tab == 'scan') {
+      _startCamera();
+    }
+  }
+
+  Future<void> _startCamera() async {
+    if (!mounted || _isStartingCamera) return;
+    if (_cameraCtrl.value.isRunning) return;
+    _isStartingCamera = true;
+    try {
+      await _cameraCtrl.start();
+    } catch (e) {
+      debugPrint('[CheckIn] Camera start error: $e');
+    } finally {
+      if (mounted) {
+        _isStartingCamera = false;
+      }
+    }
+  }
+
+  Future<void> _stopCamera() async {
+    if (!_cameraCtrl.value.isInitialized || !_cameraCtrl.value.isRunning) return;
+    try {
+      await _cameraCtrl.stop();
+    } catch (e) {
+      debugPrint('[CheckIn] Camera stop error: $e');
+    }
+  }
+
+  void _resetController() {
+    try {
+      _cameraCtrl.dispose();
+    } catch (_) {}
+    _cameraCtrl = MobileScannerController(
+      autoStart: true,
+      detectionSpeed: DetectionSpeed.noDuplicates,
+    );
+    setState(() {});
   }
 
   Future<void> _search() async {
@@ -95,7 +139,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
     final raw = capture.barcodes.firstOrNull?.rawValue;
     if (raw == null) return;
     setState(() => _isScanning = true);
-    _cameraCtrl.stop(); // Stop scanning immediately to save resources and prevent multiple scans
+    await _stopCamera(); // Pause camera while showing check-in result
     try {
       // QR format: JSON {"userId": N, "gymId": N, "membershipId": N}
       final parsed = _parseQr(raw);
@@ -161,7 +205,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
                 if (dialogCtx.mounted) {
                   Navigator.pop(ctx);
                   if (mounted && _tab == 'scan') {
-                    _cameraCtrl.start();
+                    _startCamera();
                   }
                 }
               }
@@ -180,7 +224,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
                     timer?.cancel();
                     Navigator.pop(ctx);
                     if (mounted && _tab == 'scan') {
-                      _cameraCtrl.start();
+                      _startCamera();
                     }
                   },
                   child: Text('OK (${countdown}s)'),
@@ -192,6 +236,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
       },
     ).then((_) {
       timer?.cancel();
+      if (mounted && _tab == 'scan') {
+        _startCamera();
+      }
     });
   }
 
@@ -205,40 +252,60 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
         backgroundColor: AppColors.surface,
         elevation: 0,
       ),
-      body: SafeArea(child: Column(children: [
-        // Tab bar
-        Container(
-          color: AppColors.surface,
-          child: Row(children: [
-            _TabBtn(label: '🔍 Manual', active: _tab == 'manual', onTap: () {
-              if (_tab == 'manual') return;
-              setState(() => _tab = 'manual');
-              _cameraCtrl.stop();
-            }),
-            _TabBtn(label: '📷 Scan QR', active: _tab == 'scan', onTap: () {
-              if (_tab == 'scan') return;
-              setState(() => _tab = 'scan');
-              _cameraCtrl.start();
-            }),
-          ]),
-        ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Tab bar
+            Container(
+              color: AppColors.surface,
+              child: Row(
+                children: [
+                  _TabBtn(
+                    label: '📷 Scan QR',
+                    active: _tab == 'scan',
+                    onTap: () {
+                      if (_tab == 'scan') return;
+                      setState(() => _tab = 'scan');
+                      _startCamera();
+                    },
+                  ),
+                  _TabBtn(
+                    label: '🔍 Manual',
+                    active: _tab == 'manual',
+                    onTap: () {
+                      if (_tab == 'manual') return;
+                      setState(() => _tab = 'manual');
+                      _stopCamera();
+                    },
+                  ),
+                ],
+              ),
+            ),
 
-        if (_tab == 'manual') Expanded(child: _ManualTab(
-          searchCtrl: _searchCtrl, members: _members, searching: _searching,
-          checkingIn: _checkingIn, onSearch: _search, onCheckIn: _checkInManual,
-        ))
-        else Expanded(child: VisibilityDetector(
-          key: const Key('checkin_scanner_visibility'),
-          onVisibilityChanged: (info) {
-            if (info.visibleFraction == 0 && mounted) {
-              _cameraCtrl.stop();
-            } else if (info.visibleFraction > 0 && mounted && _tab == 'scan') {
-              _cameraCtrl.start();
-            }
-          },
-          child: _ScanTab(controller: _cameraCtrl, onDetect: _handleQr, isScanning: _isScanning),
-        )),
-      ])),
+            Expanded(
+              child: IndexedStack(
+                index: _tab == 'scan' ? 0 : 1,
+                children: [
+                  _ScanTab(
+                    controller: _cameraCtrl,
+                    onDetect: _handleQr,
+                    isScanning: _isScanning,
+                    onRetry: _resetController,
+                  ),
+                  _ManualTab(
+                    searchCtrl: _searchCtrl,
+                    members: _members,
+                    searching: _searching,
+                    checkingIn: _checkingIn,
+                    onSearch: _search,
+                    onCheckIn: _checkInManual,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -252,19 +319,45 @@ class _TabBtn extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    return Expanded(child: GestureDetector(onTap: onTap, child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: active ? AppColors.accent : Colors.transparent, width: 2))),
-      child: Center(child: Text(label, style: TextStyle(color: active ? AppColors.accent : AppColors.textMuted, fontWeight: FontWeight.w600))),
-    )));
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: active ? AppColors.accent : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: active ? AppColors.accent : AppColors.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
 // ── Manual search tab ────────────────────────────────────────────────────────
 
 class _ManualTab extends StatelessWidget {
-  const _ManualTab({required this.searchCtrl, required this.members, required this.searching,
-      required this.checkingIn, required this.onSearch, required this.onCheckIn});
+  const _ManualTab({
+    required this.searchCtrl,
+    required this.members,
+    required this.searching,
+    required this.checkingIn,
+    required this.onSearch,
+    required this.onCheckIn,
+  });
   final TextEditingController searchCtrl;
   final List<Member> members;
   final bool searching;
@@ -274,189 +367,333 @@ class _ManualTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(children: [
-          Expanded(child: TextField(
-            controller: searchCtrl,
-            style: const TextStyle(color: AppColors.textPrimary),
-            decoration: const InputDecoration(hintText: 'Cari nama atau Member ID...', prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted)),
-            onSubmitted: (_) => onSearch(),
-          )),
-          const SizedBox(width: 10),
-          ElevatedButton(onPressed: onSearch, child: const Text('Cari')),
-        ]),
-      ),
-      Expanded(child: searching
-          ? const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
-          : members.isEmpty
-              ? Center(child: Text(searchCtrl.text.isNotEmpty ? 'Member tidak ditemukan' : 'Cari member untuk check-in',
-                  style: const TextStyle(color: AppColors.textMuted)))
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: members.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) {
-                    final m = members[i];
-                    final isExpired = m.status.toLowerCase() != 'active';
-                    return Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isExpired ? const Color(0xFF1A0A0A) : AppColors.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isExpired ? AppColors.error.withAlpha(76) : AppColors.border),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: searchCtrl,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(
+                    hintText: 'Cari nama atau Member ID...',
+                    prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
+                  ),
+                  onSubmitted: (_) => onSearch(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(onPressed: onSearch, child: const Text('Cari')),
+            ],
+          ),
+        ),
+        Expanded(
+          child: searching
+              ? const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
+              : members.isEmpty
+                  ? Center(
+                      child: Text(
+                        searchCtrl.text.isNotEmpty ? 'Member tidak ditemukan' : 'Cari member untuk check-in',
+                        style: const TextStyle(color: AppColors.textMuted),
                       ),
-                      child: Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(m.name, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
-                          if (m.memberId != null) Text('ID: ${m.memberId}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                          Container(
-                            margin: const EdgeInsets.only(top: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: (isExpired ? AppColors.error : AppColors.success).withAlpha(38),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(m.status, style: TextStyle(color: isExpired ? AppColors.error : AppColors.success, fontSize: 11, fontWeight: FontWeight.w600)),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      itemCount: members.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) {
+                        final m = members[i];
+                        final isExpired = m.status.toLowerCase() != 'active';
+                        return Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isExpired ? const Color(0xFF1A0A0A) : AppColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isExpired ? AppColors.error.withAlpha(76) : AppColors.border),
                           ),
-                        ])),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isExpired ? AppColors.surface : AppColors.accent,
-                            foregroundColor: isExpired ? AppColors.textMuted : Colors.black,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      m.name,
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    if (m.memberId != null)
+                                      Text(
+                                        'ID: ${m.memberId}',
+                                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                                      ),
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: (isExpired ? AppColors.error : AppColors.success).withAlpha(38),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        m.status,
+                                        style: TextStyle(
+                                          color: isExpired ? AppColors.error : AppColors.success,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isExpired ? AppColors.surface : AppColors.accent,
+                                  foregroundColor: isExpired ? AppColors.textMuted : Colors.black,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                ),
+                                onPressed: checkingIn[m.id] == true ? null : () => onCheckIn(m),
+                                child: checkingIn[m.id] == true
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                      )
+                                    : const Text('Check-in', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ],
                           ),
-                          onPressed: checkingIn[m.id] == true ? null : () => onCheckIn(m),
-                          child: checkingIn[m.id] == true
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                              : const Text('Check-in', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      ]),
-                    );
-                  }),
-      ),
-    ]);
+                        );
+                      },
+                    ),
+        ),
+      ],
+    );
   }
 }
 
 // ── QR Scan tab ──────────────────────────────────────────────────────────────
 
 class _ScanTab extends StatelessWidget {
-  const _ScanTab(
-      {required this.controller,
-      required this.onDetect,
-      required this.isScanning});
+  const _ScanTab({
+    required this.controller,
+    required this.onDetect,
+    required this.isScanning,
+    required this.onRetry,
+  });
+
   final MobileScannerController controller;
   final void Function(BarcodeCapture) onDetect;
   final bool isScanning;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     const boxSize = 250.0;
     const radius = 16.0;
 
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-        final cutout = Rect.fromCenter(
-          center: Offset(w / 2, h / 2),
-          width: boxSize,
-          height: boxSize,
-        );
+    return ValueListenableBuilder<MobileScannerState>(
+      valueListenable: controller,
+      builder: (context, state, _) {
+        final hasError = state.error != null;
+        final isReady = state.isInitialized && !hasError;
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // Camera feed
-            MobileScanner(controller: controller, onDetect: onDetect),
+        return LayoutBuilder(
+          builder: (ctx, constraints) {
+            final w = constraints.maxWidth;
+            final h = constraints.maxHeight;
+            final cutout = Rect.fromCenter(
+              center: Offset(w / 2, h / 2),
+              width: boxSize,
+              height: boxSize,
+            );
 
-            // Dim overlay with see-through cutout (CustomPaint — reliable on Impeller)
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size(w, h),
-                painter: _ScannerOverlayPainter(
-                  cutout: cutout,
-                  borderRadius: radius,
-                  overlayColor: Colors.black.withAlpha(140),
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                // 1. Camera feed / placeholder / error
+                MobileScanner(
+                  controller: controller,
+                  onDetect: onDetect,
+                  fit: BoxFit.cover,
+                  placeholderBuilder: (ctx, child) {
+                    return Container(
+                      color: AppColors.background,
+                      child: const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2.5),
+                            SizedBox(height: 16),
+                            Text(
+                              'Menyiapkan kamera...',
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (ctx, error, child) {
+                    String title = 'Kamera Tidak Tersedia';
+                    String desc = 'Terjadi kesalahan saat menginisialisasi kamera.';
+
+                    if (error.errorCode == MobileScannerErrorCode.permissionDenied) {
+                      title = 'Izin Kamera Dibutuhkan';
+                      desc = 'FitFlow Admin memerlukan izin kamera untuk memindai QR code check-in member.';
+                    } else if (error.errorCode == MobileScannerErrorCode.unsupported) {
+                      title = 'Perangkat Tidak Didukung';
+                      desc = 'Kamera tidak didukung pada perangkat ini.';
+                    }
+
+                    return Container(
+                      color: AppColors.background,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withAlpha(30),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.videocam_off_rounded, size: 48, color: AppColors.error),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              desc,
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 13,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Coba Lagi', style: TextStyle(fontWeight: FontWeight.bold)),
+                              onPressed: onRetry,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              ),
-            ),
 
-            // Corner brackets around the cutout for visual affordance
-            Positioned(
-              left: cutout.left,
-              top: cutout.top,
-              width: cutout.width,
-              height: cutout.height,
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _CornerBracketPainter(
-                    color: AppColors.accent,
-                    radius: radius,
+                // 2. Overlays only when camera is initialized and has no error
+                if (isReady) ...[
+                  // Dim overlay with see-through cutout (CustomPaint)
+                  IgnorePointer(
+                    child: CustomPaint(
+                      size: Size(w, h),
+                      painter: _ScannerOverlayPainter(
+                        cutout: cutout,
+                        borderRadius: radius,
+                        overlayColor: Colors.black.withAlpha(140),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
 
-            // Caption + spinner under the cutout
-            Positioned(
-              left: 0,
-              right: 0,
-              top: cutout.bottom + 20,
-              child: IgnorePointer(
-                child: Column(
-                  children: [
-                    const Text(
-                      'Arahkan QR Code ke dalam kotak',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                  // Corner brackets around the cutout
+                  Positioned(
+                    left: cutout.left,
+                    top: cutout.top,
+                    width: cutout.width,
+                    height: cutout.height,
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: _CornerBracketPainter(
+                          color: AppColors.accent,
+                          radius: radius,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                    if (isScanning) ...[
-                      const SizedBox(height: 12),
-                      const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            color: AppColors.accent, strokeWidth: 2.5),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+                  ),
 
-            // Torch toggle
-            Positioned(
-              top: 16,
-              right: 16,
-              child: ValueListenableBuilder<MobileScannerState>(
-                valueListenable: controller,
-                builder: (_, state, __) {
-                  final torchOn = state.torchState == TorchState.on;
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(120),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        torchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                        color: torchOn ? AppColors.accent : Colors.white,
+                  // Caption + spinner under the cutout
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: cutout.bottom + 20,
+                    child: IgnorePointer(
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Arahkan QR Code ke dalam kotak',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          if (isScanning) ...[
+                            const SizedBox(height: 12),
+                            const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                color: AppColors.accent,
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      onPressed: () => controller.toggleTorch(),
                     ),
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+
+                  // Torch toggle
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(120),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          state.torchState == TorchState.on
+                              ? Icons.flash_on_rounded
+                              : Icons.flash_off_rounded,
+                          color: state.torchState == TorchState.on
+                              ? AppColors.accent
+                              : Colors.white,
+                        ),
+                        onPressed: () => controller.toggleTorch(),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
         );
       },
     );
