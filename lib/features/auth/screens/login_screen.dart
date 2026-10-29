@@ -66,8 +66,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const Spacer(),
               const FitFlowLogo(
-                  fontSize: 48, alignment: MainAxisAlignment.center),
-              const SizedBox(height: 48),
+                fontSize: 32,
+                alignment: MainAxisAlignment.center,
+                stacked: true,
+              ),
+              const SizedBox(height: 36),
               TextField(
                 key: const Key('email_field'),
                 controller: _emailController,
