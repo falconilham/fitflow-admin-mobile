@@ -32,26 +32,28 @@ class AppTheme {
         onSecondary: Color(0xFF000000),
         onSurface: AppColors.textPrimary,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
+        titleTextStyle: GoogleFonts.outfit(
           color: AppColors.textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.w800,
         ),
-        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.tabBar,
         selectedItemColor: AppColors.accent,
         unselectedItemColor: AppColors.textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
-        selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        selectedLabelStyle:
+            GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600),
+        unselectedLabelStyle:
+            GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600),
       ),
       cardTheme: CardThemeData(
         color: AppColors.card,
@@ -84,17 +86,24 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.accent,
           foregroundColor: Colors.black,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          textStyle:
+              GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppColors.accent),
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.accent,
+          textStyle: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+        ),
       ),
-      dividerTheme: const DividerThemeData(color: AppColors.border, thickness: 1),
+      dividerTheme:
+          const DividerThemeData(color: AppColors.border, thickness: 1),
       fontFamily: GoogleFonts.outfit().fontFamily,
-      textTheme: TextTheme(
+      textTheme:
+          GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme).copyWith(
         displayLarge: GoogleFonts.outfit(
           fontSize: 32,
           fontWeight: FontWeight.w900,
