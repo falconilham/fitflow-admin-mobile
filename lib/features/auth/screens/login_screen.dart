@@ -24,34 +24,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-Future<void> _submit() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text;
+  Future<void> _submit() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-  if (email.isEmpty || password.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Email dan password wajib diisi'),
-      ),
-    );
-    return;
-  }
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email dan password wajib diisi'),
+        ),
+      );
+      return;
+    }
 
-  try {
-    await ref
-        .read(authProvider.notifier)
-        .login(email, password);
-  } catch (e) {
-    _emailController.clear();
-    _passwordController.clear();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(e.toString()),
-      ),
-    );
+    try {
+      await ref.read(authProvider.notifier).login(email, password);
+    } catch (e) {
+      _passwordController.clear();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+        ),
+      );
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +65,8 @@ Future<void> _submit() async {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              const FitFlowLogo(fontSize: 48, alignment: MainAxisAlignment.center),
+              const FitFlowLogo(
+                  fontSize: 48, alignment: MainAxisAlignment.center),
               const SizedBox(height: 48),
               TextField(
                 key: const Key('email_field'),
@@ -77,7 +75,8 @@ Future<void> _submit() async {
                 style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined, color: AppColors.textMuted),
+                  prefixIcon:
+                      Icon(Icons.email_outlined, color: AppColors.textMuted),
                 ),
               ),
               const SizedBox(height: 16),
@@ -89,7 +88,8 @@ Future<void> _submit() async {
                 onSubmitted: (_) => _submit(),
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textMuted),
+                  prefixIcon: const Icon(Icons.lock_outline,
+                      color: AppColors.textMuted),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -109,11 +109,13 @@ Future<void> _submit() async {
                   decoration: BoxDecoration(
                     color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     error,
-                    style: const TextStyle(color: AppColors.error, fontSize: 13),
+                    style:
+                        const TextStyle(color: AppColors.error, fontSize: 13),
                   ),
                 ),
                 const SizedBox(height: 12),

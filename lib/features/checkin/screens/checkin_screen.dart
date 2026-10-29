@@ -16,13 +16,12 @@ class CheckInScreen extends ConsumerStatefulWidget {
   ConsumerState<CheckInScreen> createState() => _CheckInScreenState();
 }
 
-class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindingObserver {
+class _CheckInScreenState extends ConsumerState<CheckInScreen>
+    with WidgetsBindingObserver {
   final _searchCtrl = TextEditingController();
-  MobileScannerController _cameraCtrl = MobileScannerController(
-    autoStart: true,
-    detectionSpeed: DetectionSpeed.noDuplicates,
-  );
-  String _tab = 'scan'; // 'scan' | 'manual' — default to QR scan as primary check-in interface
+  late MobileScannerController _cameraCtrl;
+  String _tab =
+      'scan'; // 'scan' | 'manual' — default to QR scan as primary check-in interface
   List<Member> _members = [];
   bool _searching = false;
   bool _isScanning = false;
@@ -33,6 +32,19 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _cameraCtrl = MobileScannerController(
+      autoStart: false,
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      facing: CameraFacing.back,
+    );
+    // Allow Android native surface to bind before starting camera
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _tab == 'scan') {
+          _startCamera();
+        }
+      });
+    });
   }
 
   @override
@@ -75,7 +87,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
   }
 
   Future<void> _stopCamera() async {
-    if (!_cameraCtrl.value.isInitialized || !_cameraCtrl.value.isRunning) return;
+    if (!_cameraCtrl.value.isInitialized || !_cameraCtrl.value.isRunning)
+      return;
     try {
       await _cameraCtrl.stop();
     } catch (e) {
@@ -83,15 +96,35 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
     }
   }
 
-  void _resetController() {
+  Future<void> _resetController() async {
+    if (_isStartingCamera) return;
+    _isStartingCamera = true;
     try {
-      _cameraCtrl.dispose();
+      await _cameraCtrl.stop();
+      await _cameraCtrl.dispose();
     } catch (_) {}
-    _cameraCtrl = MobileScannerController(
-      autoStart: true,
-      detectionSpeed: DetectionSpeed.noDuplicates,
-    );
-    setState(() {});
+
+    if (!mounted) return;
+
+    setState(() {
+      _cameraCtrl = MobileScannerController(
+        autoStart: false,
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        facing: CameraFacing.back,
+      );
+    });
+
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted && _tab == 'scan') {
+      try {
+        await _cameraCtrl.start();
+      } catch (e) {
+        debugPrint('[CheckIn] Camera restart error: $e');
+      }
+    }
+    if (mounted) {
+      _isStartingCamera = false;
+    }
   }
 
   Future<void> _search() async {
@@ -100,10 +133,15 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
     if (gymId == null) return;
     setState(() => _searching = true);
     try {
-      final rows = await ref.read(apiRepositoryProvider).getMembers(gymId, search: _searchCtrl.text.trim(), limit: 20);
+      final rows = await ref
+          .read(apiRepositoryProvider)
+          .getMembers(gymId, search: _searchCtrl.text.trim(), limit: 20);
       setState(() => _members = rows);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mencari member: $e'), backgroundColor: AppColors.error));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Gagal mencari member: $e'),
+            backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -114,17 +152,22 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
     if (gymId == null || member.userId == null) return;
     setState(() => _checkingIn[member.id] = true);
     try {
-      final res = await ref.read(apiRepositoryProvider).checkInByQr(gymId, member.userId!, member.id);
-      
+      final res = await ref
+          .read(apiRepositoryProvider)
+          .checkInByQr(gymId, member.userId!, member.id);
+
       // Defensive parsing of response
-      final resStatus = res['access']?.toString() ?? res['status']?.toString() ?? '';
+      final resStatus =
+          res['access']?.toString() ?? res['status']?.toString() ?? '';
       final isGranted = resStatus == 'granted' || resStatus == 'success';
       final isCheckout = res['type']?.toString() == 'checkout';
-      
-      final memberMap = res['member'] as Map? ?? (res['data'] as Map?)?['member'] as Map?;
+
+      final memberMap =
+          res['member'] as Map? ?? (res['data'] as Map?)?['member'] as Map?;
       final name = memberMap?['name']?.toString() ?? member.name;
-      final message = res['message']?.toString() ?? res['status']?.toString() ?? '';
-      
+      final message =
+          res['message']?.toString() ?? res['status']?.toString() ?? '';
+
       if (mounted) _showResult(isGranted, isCheckout, name, message);
     } catch (e) {
       final errMsg = ErrorHandler.parse(e);
@@ -143,19 +186,25 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
     try {
       // QR format: JSON {"userId": N, "gymId": N, "membershipId": N}
       final parsed = _parseQr(raw);
-      if (parsed == null) { _showResult(false, false, '', 'Format QR tidak valid'); return; }
+      if (parsed == null) {
+        _showResult(false, false, '', 'Format QR tidak valid');
+        return;
+      }
       final res = await ref.read(apiRepositoryProvider).checkInByQr(
           parsed['gymId']!, parsed['userId']!, parsed['membershipId']!);
-          
+
       // Defensive parsing of response
-      final resStatus = res['access']?.toString() ?? res['status']?.toString() ?? '';
+      final resStatus =
+          res['access']?.toString() ?? res['status']?.toString() ?? '';
       final isGranted = resStatus == 'granted' || resStatus == 'success';
       final isCheckout = res['type']?.toString() == 'checkout';
-      
-      final memberMap = res['member'] as Map? ?? (res['data'] as Map?)?['member'] as Map?;
+
+      final memberMap =
+          res['member'] as Map? ?? (res['data'] as Map?)?['member'] as Map?;
       final name = memberMap?['name']?.toString() ?? '';
-      final message = res['message']?.toString() ?? res['status']?.toString() ?? '';
-      
+      final message =
+          res['message']?.toString() ?? res['status']?.toString() ?? '';
+
       if (mounted) _showResult(isGranted, isCheckout, name, message);
     } catch (e) {
       if (mounted) _showResult(false, false, '', ErrorHandler.parse(e));
@@ -169,16 +218,28 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
       // Try JSON first
       final decoded = raw.replaceAll("'", '"');
       final Map<String, dynamic> json = Map<String, dynamic>.from(
-        RegExp(r'"(\w+)":\s*(\d+)').allMatches(decoded).fold(<String, dynamic>{},
-            (map, m) => map..['${m.group(1)}'] = int.parse(m.group(2)!)));
-      if (json.containsKey('userId') && json.containsKey('gymId') && json.containsKey('membershipId')) {
-        return {'userId': json['userId'] as int, 'gymId': json['gymId'] as int, 'membershipId': json['membershipId'] as int};
+          RegExp(r'"(\w+)":\s*(\d+)').allMatches(decoded).fold(
+              <String, dynamic>{},
+              (map, m) => map..['${m.group(1)}'] = int.parse(m.group(2)!)));
+      if (json.containsKey('userId') &&
+          json.containsKey('gymId') &&
+          json.containsKey('membershipId')) {
+        return {
+          'userId': json['userId'] as int,
+          'gymId': json['gymId'] as int,
+          'membershipId': json['membershipId'] as int
+        };
       }
       // Fallback: userId:membershipId
       final parts = raw.split(':');
       if (parts.length == 2) {
         final gymId = ref.read(authProvider).valueOrNull?.activeGymId;
-        if (gymId != null) return {'userId': int.parse(parts[0]), 'gymId': gymId, 'membershipId': int.parse(parts[1])};
+        if (gymId != null)
+          return {
+            'userId': int.parse(parts[0]),
+            'gymId': gymId,
+            'membershipId': int.parse(parts[1])
+          };
       }
     } catch (_) {}
     return null;
@@ -214,10 +275,16 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
             return AlertDialog(
               backgroundColor: AppColors.card,
               title: Text(
-                granted ? (checkout ? '✅ Check-out Berhasil' : '✅ Check-in Berhasil') : '❌ Ditolak',
-                style: TextStyle(color: granted ? AppColors.success : AppColors.error),
+                granted
+                    ? (checkout
+                        ? '✅ Check-out Berhasil'
+                        : '✅ Check-in Berhasil')
+                    : '❌ Ditolak',
+                style: TextStyle(
+                    color: granted ? AppColors.success : AppColors.error),
               ),
-              content: Text('$name: $message', style: const TextStyle(color: AppColors.textSecondary)),
+              content: Text('$name: $message',
+                  style: const TextStyle(color: AppColors.textSecondary)),
               actions: [
                 TextButton(
                   onPressed: () {
@@ -248,7 +315,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
       backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: const DrawerMenuButton(),
-        title: const Text('Check-In', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Check-In',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.surface,
         elevation: 0,
       ),
@@ -313,7 +381,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> with WidgetsBindi
 // ── Tab bar button ──────────────────────────────────────────────────────────
 
 class _TabBtn extends StatelessWidget {
-  const _TabBtn({required this.label, required this.active, required this.onTap});
+  const _TabBtn(
+      {required this.label, required this.active, required this.onTap});
   final String label;
   final bool active;
   final VoidCallback onTap;
@@ -379,7 +448,8 @@ class _ManualTab extends StatelessWidget {
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     hintText: 'Cari nama atau Member ID...',
-                    prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
+                    prefixIcon:
+                        Icon(Icons.search_rounded, color: AppColors.textMuted),
                   ),
                   onSubmitted: (_) => onSearch(),
                 ),
@@ -391,11 +461,15 @@ class _ManualTab extends StatelessWidget {
         ),
         Expanded(
           child: searching
-              ? const Center(child: CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2))
+              ? const Center(
+                  child: CircularProgressIndicator(
+                      color: AppColors.accent, strokeWidth: 2))
               : members.isEmpty
                   ? Center(
                       child: Text(
-                        searchCtrl.text.isNotEmpty ? 'Member tidak ditemukan' : 'Cari member untuk check-in',
+                        searchCtrl.text.isNotEmpty
+                            ? 'Member tidak ditemukan'
+                            : 'Cari member untuk check-in',
                         style: const TextStyle(color: AppColors.textMuted),
                       ),
                     )
@@ -409,9 +483,14 @@ class _ManualTab extends StatelessWidget {
                         return Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: isExpired ? const Color(0xFF1A0A0A) : AppColors.card,
+                            color: isExpired
+                                ? const Color(0xFF1A0A0A)
+                                : AppColors.card,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: isExpired ? AppColors.error.withAlpha(76) : AppColors.border),
+                            border: Border.all(
+                                color: isExpired
+                                    ? AppColors.error.withAlpha(76)
+                                    : AppColors.border),
                           ),
                           child: Row(
                             children: [
@@ -430,19 +509,27 @@ class _ManualTab extends StatelessWidget {
                                     if (m.memberId != null)
                                       Text(
                                         'ID: ${m.memberId}',
-                                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                                        style: const TextStyle(
+                                            color: AppColors.textMuted,
+                                            fontSize: 12),
                                       ),
                                     Container(
                                       margin: const EdgeInsets.only(top: 6),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: (isExpired ? AppColors.error : AppColors.success).withAlpha(38),
+                                        color: (isExpired
+                                                ? AppColors.error
+                                                : AppColors.success)
+                                            .withAlpha(38),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(
                                         m.status,
                                         style: TextStyle(
-                                          color: isExpired ? AppColors.error : AppColors.success,
+                                          color: isExpired
+                                              ? AppColors.error
+                                              : AppColors.success,
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -454,18 +541,29 @@ class _ManualTab extends StatelessWidget {
                               const SizedBox(width: 12),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isExpired ? AppColors.surface : AppColors.accent,
-                                  foregroundColor: isExpired ? AppColors.textMuted : Colors.black,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  backgroundColor: isExpired
+                                      ? AppColors.surface
+                                      : AppColors.accent,
+                                  foregroundColor: isExpired
+                                      ? AppColors.textMuted
+                                      : Colors.black,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
                                 ),
-                                onPressed: checkingIn[m.id] == true ? null : () => onCheckIn(m),
+                                onPressed: checkingIn[m.id] == true
+                                    ? null
+                                    : () => onCheckIn(m),
                                 child: checkingIn[m.id] == true
                                     ? const SizedBox(
                                         width: 16,
                                         height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.black),
                                       )
-                                    : const Text('Check-in', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    : const Text('Check-in',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold)),
                               ),
                             ],
                           ),
@@ -519,6 +617,7 @@ class _ScanTab extends StatelessWidget {
               children: [
                 // 1. Camera feed / placeholder / error
                 MobileScanner(
+                  key: ValueKey('scanner_${controller.hashCode}'),
                   controller: controller,
                   onDetect: onDetect,
                   fit: BoxFit.cover,
@@ -529,11 +628,13 @@ class _ScanTab extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2.5),
+                            CircularProgressIndicator(
+                                color: AppColors.accent, strokeWidth: 2.5),
                             SizedBox(height: 16),
                             Text(
                               'Menyiapkan kamera...',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                              style: TextStyle(
+                                  color: AppColors.textSecondary, fontSize: 13),
                             ),
                           ],
                         ),
@@ -542,12 +643,16 @@ class _ScanTab extends StatelessWidget {
                   },
                   errorBuilder: (ctx, error, child) {
                     String title = 'Kamera Tidak Tersedia';
-                    String desc = 'Terjadi kesalahan saat menginisialisasi kamera.';
+                    String desc =
+                        'Terjadi kesalahan saat menginisialisasi kamera.';
 
-                    if (error.errorCode == MobileScannerErrorCode.permissionDenied) {
+                    if (error.errorCode ==
+                        MobileScannerErrorCode.permissionDenied) {
                       title = 'Izin Kamera Dibutuhkan';
-                      desc = 'FitFlow Admin memerlukan izin kamera untuk memindai QR code check-in member.';
-                    } else if (error.errorCode == MobileScannerErrorCode.unsupported) {
+                      desc =
+                          'FitFlow Admin memerlukan izin kamera untuk memindai QR code check-in member.';
+                    } else if (error.errorCode ==
+                        MobileScannerErrorCode.unsupported) {
                       title = 'Perangkat Tidak Didukung';
                       desc = 'Kamera tidak didukung pada perangkat ini.';
                     }
@@ -565,7 +670,8 @@ class _ScanTab extends StatelessWidget {
                                 color: AppColors.error.withAlpha(30),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.videocam_off_rounded, size: 48, color: AppColors.error),
+                              child: const Icon(Icons.videocam_off_rounded,
+                                  size: 48, color: AppColors.error),
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -591,11 +697,15 @@ class _ScanTab extends StatelessWidget {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.accent,
                                 foregroundColor: Colors.black,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
                               ),
                               icon: const Icon(Icons.refresh_rounded, size: 18),
-                              label: const Text('Coba Lagi', style: TextStyle(fontWeight: FontWeight.bold)),
+                              label: const Text('Coba Lagi',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
                               onPressed: onRetry,
                             ),
                           ],
@@ -635,35 +745,81 @@ class _ScanTab extends StatelessWidget {
                     ),
                   ),
 
-                  // Caption + spinner under the cutout
+                  // Caption + spinner + tap-to-retry hint under the cutout
                   Positioned(
                     left: 0,
                     right: 0,
-                    top: cutout.bottom + 20,
-                    child: IgnorePointer(
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Arahkan QR Code ke dalam kotak',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            textAlign: TextAlign.center,
+                    top: cutout.bottom + 16,
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Arahkan QR Code ke dalam kotak',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                           ),
-                          if (isScanning) ...[
-                            const SizedBox(height: 12),
-                            const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                color: AppColors.accent,
-                                strokeWidth: 2.5,
-                              ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        GestureDetector(
+                          onTap: onRetry,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withAlpha(140),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white24),
                             ),
-                          ],
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.refresh_rounded,
+                                    size: 14, color: AppColors.accent),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Kamera hitam? Ketuk untuk muat ulang',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (isScanning) ...[
+                          const SizedBox(height: 12),
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              color: AppColors.accent,
+                              strokeWidth: 2.5,
+                            ),
+                          ),
                         ],
+                      ],
+                    ),
+                  ),
+
+                  // Reload / refresh camera button
+                  Positioned(
+                    top: 16,
+                    right: 68,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(120),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: Colors.white,
+                        ),
+                        tooltip: 'Muat Ulang Kamera',
+                        onPressed: onRetry,
                       ),
                     ),
                   ),
