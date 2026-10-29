@@ -87,8 +87,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
   }
 
   Future<void> _stopCamera() async {
-    if (!_cameraCtrl.value.isInitialized || !_cameraCtrl.value.isRunning)
+    if (!_cameraCtrl.value.isInitialized || !_cameraCtrl.value.isRunning) {
       return;
+    }
     try {
       await _cameraCtrl.stop();
     } catch (e) {
@@ -138,10 +139,11 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
           .getMembers(gymId, search: _searchCtrl.text.trim(), limit: 20);
       setState(() => _members = rows);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Gagal mencari member: $e'),
             backgroundColor: AppColors.error));
+      }
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -234,12 +236,13 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
       final parts = raw.split(':');
       if (parts.length == 2) {
         final gymId = ref.read(authProvider).valueOrNull?.activeGymId;
-        if (gymId != null)
+        if (gymId != null) {
           return {
             'userId': int.parse(parts[0]),
             'gymId': gymId,
             'membershipId': int.parse(parts[1])
           };
+        }
       }
     } catch (_) {}
     return null;

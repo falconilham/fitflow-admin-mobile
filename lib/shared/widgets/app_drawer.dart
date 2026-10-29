@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/updater/app_updater_service.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/notifications/providers/notifications_provider.dart';
 
@@ -335,7 +337,9 @@ class AppDrawerContent extends ConsumerWidget {
                   ref.read(authProvider.notifier).logout();
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              const _DrawerVersionCard(),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -475,3 +479,117 @@ class _DrawerSection extends StatelessWidget {
     );
   }
 }
+
+class _DrawerVersionCard extends StatefulWidget {
+  const _DrawerVersionCard();
+
+  @override
+  State<_DrawerVersionCard> createState() => _DrawerVersionCardState();
+}
+
+class _DrawerVersionCardState extends State<_DrawerVersionCard> {
+  String _version = 'v1.0.0';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final v = await AppUpdaterService.getSemVerVersion();
+    if (mounted) setState(() => _version = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withAlpha(25),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.accent.withAlpha(80)),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                color: AppColors.accent,
+                size: 18,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'FitFlow Admin',
+                  style: GoogleFonts.outfit(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  _version,
+                  style: GoogleFonts.outfit(
+                    color: AppColors.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              AppUpdaterService.checkForUpdates(context, isManual: true);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.sync_rounded,
+                    size: 14,
+                    color: AppColors.accent,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Periksa',
+                    style: GoogleFonts.outfit(
+                      color: AppColors.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

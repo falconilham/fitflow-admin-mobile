@@ -43,6 +43,9 @@ dependencies:
   visibility_detector: ^0.4.0+2
   image_picker: ^1.2.2
   fl_chart: ^1.2.0
+  shorebird_code_push: ^2.0.7
+  restart_app: ^1.10.2
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/updater/app_updater_service.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
@@ -32,11 +33,26 @@ final recentCheckInsProvider = FutureProvider.autoDispose<List<CheckInRecord>>((
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        AppUpdaterService.checkForUpdates(context);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider).valueOrNull;
     final admin = authState?.admin;
     final activeGymId = authState?.activeGymId;
