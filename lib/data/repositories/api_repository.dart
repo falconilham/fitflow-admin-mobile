@@ -189,10 +189,23 @@ class ApiRepository {
     await _ref.read(dioProvider).delete('/admin/membership-packages/$id');
   }
 
-  // Check-in — QR payload is JSON {userId, gymId, membershipId}
-  Future<Map<String, dynamic>> checkInByQr(int gymId, int userId, int membershipId) async {
-    final res = await _ref.read(dioProvider).post('/admin/check-in',
-        data: {'gymId': gymId, 'userId': userId, 'membershipId': membershipId});
+  // Check-in — QR payload is JSON {userId, gymId, membershipId} or signed JWT qrToken
+  Future<Map<String, dynamic>> checkInByQr(
+    int gymId,
+    int userId,
+    int membershipId, {
+    String? qrToken,
+  }) async {
+    final payload = <String, dynamic>{
+      'gymId': gymId,
+      'userId': userId,
+      'membershipId': membershipId,
+      'method': 'qr',
+    };
+    if (qrToken != null && qrToken.isNotEmpty) {
+      payload['qrToken'] = qrToken;
+    }
+    final res = await _ref.read(dioProvider).post('/admin/check-in', data: payload);
     if (res.data is! Map) return {'success': false, 'message': 'Invalid server response'};
     return res.data as Map<String, dynamic>;
   }

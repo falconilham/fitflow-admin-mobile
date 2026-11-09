@@ -44,6 +44,7 @@ class AuthState {
 
 class AuthNotifier extends AsyncNotifier<AuthState> {
   static const _tokenKey = 'auth_token';
+  static const _gymIdKey = 'active_gym_id';
 
   @override
   Future<AuthState> build() async {
@@ -55,15 +56,20 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       try {
         final repo = ref.read(apiRepositoryProvider);
         final admin = await repo.getMe();
+        final savedGymId = await storage.read(key: _gymIdKey);
+        final activeGymId = savedGymId != null
+            ? int.tryParse(savedGymId) ?? admin.gymId
+            : admin.gymId;
         return AuthState(
           status: AuthStatus.authenticated,
           token: token,
           admin: admin,
-          activeGymId: admin.gymId,
+          activeGymId: activeGymId,
         );
       } catch (e) {
         // If profile fetch fails, token is likely invalid or expired
         await storage.delete(key: _tokenKey);
+        await storage.delete(key: _gymIdKey);
         return const AuthState(status: AuthStatus.unauthenticated);
       }
     }
@@ -107,11 +113,13 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<void> logout() async {
     final storage = ref.read(secureStorageProvider);
     await storage.delete(key: _tokenKey);
+    await storage.delete(key: _gymIdKey);
     state = const AsyncValue.data(
         AuthState(status: AuthStatus.unauthenticated));
   }
 
   void setActiveGym(int gymId) {
+    ref.read(secureStorageProvider).write(key: _gymIdKey, value: gymId.toString());
     state.whenData((s) {
       state = AsyncValue.data(s.copyWith(activeGymId: gymId));
     });

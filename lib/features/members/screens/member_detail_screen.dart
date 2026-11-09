@@ -852,7 +852,7 @@ class _MemberDetailBodyState extends ConsumerState<_MemberDetailBody> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Sessions Used',
+              const Text('GYM SESSIONS',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               Text('$usedSessions / $totalSessions',
                   style: const TextStyle(

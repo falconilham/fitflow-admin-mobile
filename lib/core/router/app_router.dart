@@ -174,25 +174,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/members/:id',
         builder: (_, state) => MemberDetailScreen(
-          memberId: int.parse(state.pathParameters['id']!),
+          memberId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
         path: '/members/:id/edit',
         builder: (_, state) => EditMemberScreen(
-          memberId: int.parse(state.pathParameters['id']!),
+          memberId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
         path: '/members/:id/renew',
         builder: (_, state) => RenewMemberScreen(
-          memberId: int.parse(state.pathParameters['id']!),
+          memberId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
         path: '/members/:id/history',
         builder: (_, state) => MemberHistoryScreen(
-          memberId: int.parse(state.pathParameters['id']!),
+          memberId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
 
@@ -211,13 +211,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/classes/:id/edit',
         builder: (_, state) => AddEditClassScreen(
-          classId: int.parse(state.pathParameters['id']!),
+          classId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
         path: '/classes/:id/roster',
         builder: (_, state) => ClassRosterScreen(
-          classId: int.parse(state.pathParameters['id']!),
+          classId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
     ],

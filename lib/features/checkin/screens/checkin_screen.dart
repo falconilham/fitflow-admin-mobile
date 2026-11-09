@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -186,14 +187,18 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     setState(() => _isScanning = true);
     await _stopCamera(); // Pause camera while showing check-in result
     try {
-      // QR format: JSON {"userId": N, "gymId": N, "membershipId": N}
+      // QR format: Signed JWT token OR JSON {"userId": N, "gymId": N, "membershipId": N}
       final parsed = _parseQr(raw);
       if (parsed == null) {
         _showResult(false, false, '', 'Format QR tidak valid');
         return;
       }
       final res = await ref.read(apiRepositoryProvider).checkInByQr(
-          parsed['gymId']!, parsed['userId']!, parsed['membershipId']!);
+            parsed['gymId'] as int,
+            parsed['userId'] as int,
+            parsed['membershipId'] as int,
+            qrToken: parsed['qrToken'] as String?,
+          );
 
       // Defensive parsing of response
       final resStatus =
@@ -215,10 +220,65 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     }
   }
 
-  Map<String, int>? _parseQr(String raw) {
+  Map<String, dynamic>? _parseQr(String raw) {
     try {
-      // Try JSON first
-      final decoded = raw.replaceAll("'", '"');
+      final trimmed = raw.trim();
+
+      // 1. Signed cryptographic JWT token (Format: header.payload.signature)
+      if (trimmed.contains('.') && trimmed.split('.').length == 3) {
+        final parts = trimmed.split('.');
+        final payloadNormalized = base64Url.normalize(parts[1]);
+        final decodedBytes = base64Url.decode(payloadNormalized);
+        final decodedStr = utf8.decode(decodedBytes);
+        final dynamic jwtData = jsonDecode(decodedStr);
+
+        if (jwtData is Map) {
+          final userId = int.tryParse(jwtData['userId']?.toString() ?? '') ?? 0;
+          final membershipId = int.tryParse(
+                  (jwtData['memberId'] ?? jwtData['membershipId'])?.toString() ??
+                      '') ??
+              0;
+          final gymId = int.tryParse(jwtData['gymId']?.toString() ?? '') ??
+              (ref.read(authProvider).valueOrNull?.activeGymId ?? 0);
+
+          return {
+            'userId': userId,
+            'gymId': gymId,
+            'membershipId': membershipId,
+            'qrToken': trimmed,
+          };
+        }
+      }
+
+      // 2. Try JSON payload
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          final decodedJson = jsonDecode(trimmed);
+          if (decodedJson is Map) {
+            final userId = int.tryParse(decodedJson['userId']?.toString() ?? '') ?? 0;
+            final membershipId = int.tryParse(
+                    (decodedJson['memberId'] ?? decodedJson['membershipId'])
+                            ?.toString() ??
+                        '') ??
+                0;
+            final gymId = int.tryParse(decodedJson['gymId']?.toString() ?? '') ??
+                (ref.read(authProvider).valueOrNull?.activeGymId ?? 0);
+
+            if (userId > 0 || membershipId > 0) {
+              return {
+                'userId': userId,
+                'gymId': gymId,
+                'membershipId': membershipId,
+                if (decodedJson['qrToken'] != null)
+                  'qrToken': decodedJson['qrToken'].toString(),
+              };
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Fallback: regex for legacy loose json
+      final decoded = trimmed.replaceAll("'", '"');
       final Map<String, dynamic> json = Map<String, dynamic>.from(
           RegExp(r'"(\w+)":\s*(\d+)').allMatches(decoded).fold(
               <String, dynamic>{},
@@ -232,15 +292,18 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
           'membershipId': json['membershipId'] as int
         };
       }
-      // Fallback: userId:membershipId
-      final parts = raw.split(':');
+
+      // 4. Fallback: userId:membershipId
+      final parts = trimmed.split(':');
       if (parts.length == 2) {
         final gymId = ref.read(authProvider).valueOrNull?.activeGymId;
-        if (gymId != null) {
+        final uId = int.tryParse(parts[0]);
+        final mId = int.tryParse(parts[1]);
+        if (gymId != null && uId != null && mId != null) {
           return {
-            'userId': int.parse(parts[0]),
+            'userId': uId,
             'gymId': gymId,
-            'membershipId': int.parse(parts[1])
+            'membershipId': mId,
           };
         }
       }

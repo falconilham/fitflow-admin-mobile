@@ -1,80 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/auth_utils.dart';
+import '../../../data/models/models.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../screens/dashboard_screen.dart';
 
-class GymSwitcherWidget extends StatefulWidget {
+class GymSwitcherWidget extends ConsumerWidget {
   const GymSwitcherWidget({super.key});
 
   @override
-  State<GymSwitcherWidget> createState() => _GymSwitcherWidgetState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeGymId = ref.watch(authProvider).valueOrNull?.activeGymId;
+    final gymsAsync = ref.watch(myGymsProvider);
 
-class _GymSwitcherWidgetState extends State<GymSwitcherWidget> {
-  List<dynamic> _availableGyms = [];
-  String? _currentGymId;
-  bool _isLoading = true;
+    return gymsAsync.when(
+      loading: () => const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (List<GymSimple> gyms) {
+        if (gyms.isEmpty) return const SizedBox.shrink();
 
-  @override
-  void initState() {
-    super.initState();
-    _loadGyms();
-  }
-
-  Future<void> _loadGyms() async {
-    // In a real implementation, this would fetch from an API
-    // For now, we simulate fetching the list of gyms the owner manages
-    final current = await AuthUtils.getGymId();
-    if (!mounted) return;
-    setState(() {
-      _currentGymId = current;
-      _availableGyms = [
-        {'id': current ?? '1', 'name': 'Demo Gym (Current)'},
-        {'id': '2', 'name': 'Demo Gym Branch 2'},
-        {'id': '3', 'name': 'Demo Gym Premium'}
-      ];
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _switchGym(String newGymId) async {
-    // Logic to clear local state and reload app with new gym id
-    await AuthUtils.setGymId(newGymId);
-    if (!mounted) return;
-    setState(() {
-      _currentGymId = newGymId;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Beralih ke cabang baru...'))
-    );
-    
-    // Navigator.pushAndRemoveUntil(...) to reload dashboard
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) return const CircularProgressIndicator();
-
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.store),
-      tooltip: 'Pindah Cabang Gym',
-      onSelected: _switchGym,
-      itemBuilder: (BuildContext context) {
-        return _availableGyms.map((gym) {
-          return PopupMenuItem<String>(
-            value: gym['id'].toString(),
-            child: Row(
-              children: [
-                Icon(
-                  gym['id'] == _currentGymId ? Icons.check_circle : Icons.storefront,
-                  color: gym['id'] == _currentGymId ? Colors.green : Colors.grey,
-                  size: 20,
+        return PopupMenuButton<int>(
+          icon: const Icon(Icons.store),
+          tooltip: 'Pindah Cabang Gym',
+          onSelected: (int selectedGymId) async {
+            ref.read(authProvider.notifier).setActiveGym(selectedGymId);
+            await AuthUtils.setGymId(selectedGymId.toString());
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Beralih ke cabang gym terpilih...')),
+              );
+            }
+          },
+          itemBuilder: (BuildContext context) {
+            return gyms.map((gym) {
+              final isCurrent = gym.id == activeGymId;
+              return PopupMenuItem<int>(
+                value: gym.id,
+                child: Row(
+                  children: [
+                    Icon(
+                      isCurrent ? Icons.check_circle : Icons.storefront,
+                      color: isCurrent ? Colors.green : Colors.grey,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(gym.name),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(gym['name']),
-              ],
-            ),
-          );
-        }).toList();
+              );
+            }).toList();
+          },
+        );
       },
     );
   }
