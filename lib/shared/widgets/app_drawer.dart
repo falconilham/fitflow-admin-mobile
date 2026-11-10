@@ -36,59 +36,119 @@ class AppDrawerContent extends ConsumerWidget {
 
     return Column(
       children: [
-        // Header
+        // Header matching Web Admin Sidebar
         SafeArea(
           bottom: false,
           child: Container(
-            padding: const EdgeInsets.only(top: 24, bottom: 20, left: 20, right: 20),
+            padding: const EdgeInsets.only(top: 20, bottom: 18, left: 16, right: 16),
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const FitFlowLogo(fontSize: 22),
-                const SizedBox(height: 28),
+                // Top Row: Portal Title & Role
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
+                    Text(
+                      admin?.role == 'owner' ? 'OWNER PORTAL' : 'ADMIN PORTAL',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
                       ),
-                      child: Center(
-                        child: Text(
-                          admin?.name.isNotEmpty == true ? admin!.name[0].toUpperCase() : 'A',
-                          style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w900, fontSize: 18),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withAlpha(25),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.accent.withAlpha(60)),
+                      ),
+                      child: Text(
+                        admin?.role.toUpperCase() ?? 'ADMIN',
+                        style: GoogleFonts.outfit(
+                          color: AppColors.accent,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            admin?.name ?? 'Admin',
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            gymName,
-                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
+                ),
+                const SizedBox(height: 14),
+
+                // Official FitFlow Brand Logo (matching landing page)
+                const FitFlowLogo(fontSize: 20),
+                const SizedBox(height: 18),
+
+                // Current Gym Card matching Web Sidebar
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accent.withAlpha(50),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            gymName.isNotEmpty ? gymName[0].toUpperCase() : 'G',
+                            style: GoogleFonts.outfit(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 17,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Current Gym',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AppColors.textMuted,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              gymName,
+                              style: GoogleFonts.outfit(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

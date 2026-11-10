@@ -23,14 +23,17 @@ class ApiRepository {
   Future<DashboardStats> getStats(int gymId) async {
     final res = await _ref.read(dioProvider).get('/admin/stats', queryParameters: {'gymId': gymId});
     final data = res.data as Map<String, dynamic>;
-    // Handle both 'expenses' and 'totalExpenses' from backend
-    final expenses = (data['expenses'] ?? data['totalExpenses'] ?? 0) as num;
-    return DashboardStats(
-      totalMembers: (data['totalMembers'] ?? 0) as int,
-      activeMembers: (data['activeMembers'] ?? 0) as int,
-      dailyCheckIns: (data['dailyCheckIns'] ?? 0) as int,
-      expenses: expenses.toDouble(),
+    return DashboardStats.fromJson(data);
+  }
+
+  Future<List<ExpiringMember>> getExpiringMembers(int gymId, {int limit = 5}) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/members/expiring',
+      queryParameters: {'gymId': gymId, 'limit': limit},
     );
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => ExpiringMember.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<List<GymSimple>> getMyGyms() async {

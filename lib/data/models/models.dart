@@ -60,22 +60,78 @@ class GymSimple {
 class DashboardStats {
   final int totalMembers;
   final int activeMembers;
+  final int expiredMembers;
+  final int suspendedMembers;
+  final int archivedMembers;
   final int dailyCheckIns;
+  final double revenue;
   final double expenses;
+  final double dailyExpenses;
+  final String? gymExpiryDate;
+  final String? gymStatus;
 
   const DashboardStats({
     required this.totalMembers,
     required this.activeMembers,
+    this.expiredMembers = 0,
+    this.suspendedMembers = 0,
+    this.archivedMembers = 0,
     required this.dailyCheckIns,
+    this.revenue = 0.0,
     required this.expenses,
+    this.dailyExpenses = 0.0,
+    this.gymExpiryDate,
+    this.gymStatus,
   });
 
   factory DashboardStats.fromJson(Map<String, dynamic> json) {
+    final expenses = (json['expenses'] ?? json['totalExpenses'] ?? 0) as num;
+    final revenue = (json['revenue'] ?? 0) as num;
+    final dailyExpenses = (json['dailyExpenses'] ?? 0) as num;
     return DashboardStats(
       totalMembers: (json['totalMembers'] as num?)?.toInt() ?? 0,
       activeMembers: (json['activeMembers'] as num?)?.toInt() ?? 0,
+      expiredMembers: (json['expiredMembers'] as num?)?.toInt() ?? 0,
+      suspendedMembers: (json['suspendedMembers'] as num?)?.toInt() ?? 0,
+      archivedMembers: (json['archivedMembers'] as num?)?.toInt() ?? 0,
       dailyCheckIns: (json['dailyCheckIns'] as num?)?.toInt() ?? 0,
-      expenses: (json['expenses'] as num?)?.toDouble() ?? 0.0,
+      revenue: revenue.toDouble(),
+      expenses: expenses.toDouble(),
+      dailyExpenses: dailyExpenses.toDouble(),
+      gymExpiryDate: json['gymExpiryDate'] as String?,
+      gymStatus: json['gymStatus'] as String?,
+    );
+  }
+}
+
+class ExpiringMember {
+  final int id;
+  final String name;
+  final String email;
+  final String phone;
+  final String photo;
+  final String endDate;
+  final int daysLeft;
+
+  const ExpiringMember({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.photo,
+    required this.endDate,
+    required this.daysLeft,
+  });
+
+  factory ExpiringMember.fromJson(Map<String, dynamic> json) {
+    return ExpiringMember(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? 'Unknown',
+      email: json['email'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      photo: json['photo'] as String? ?? '',
+      endDate: json['endDate'] as String? ?? '',
+      daysLeft: (json['daysLeft'] as num?)?.toInt() ?? 0,
     );
   }
 }

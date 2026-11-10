@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import 'main_shell.dart';
 
@@ -18,7 +19,7 @@ class DrawerMenuButton extends StatelessWidget {
       }
 
       return IconButton(
-        icon: const Icon(Icons.menu),
+        icon: const Icon(LucideIcons.menu, size: 22),
         onPressed: () {
           MainShell.scaffoldKey.currentState?.openDrawer();
         },

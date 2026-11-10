@@ -36,9 +36,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     WidgetsBinding.instance.addObserver(this);
     _cameraCtrl = MobileScannerController(
       autoStart: true,
-      cameraResolution: const Size(1280, 720),
-      detectionSpeed: DetectionSpeed.normal,
-      detectionTimeoutMs: 250,
+      detectionSpeed: DetectionSpeed.unrestricted,
       formats: const [BarcodeFormat.qrCode],
       facing: CameraFacing.back,
     );
@@ -104,9 +102,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     setState(() {
       _cameraCtrl = MobileScannerController(
         autoStart: true,
-        cameraResolution: const Size(1280, 720),
-        detectionSpeed: DetectionSpeed.normal,
-        detectionTimeoutMs: 250,
+        detectionSpeed: DetectionSpeed.unrestricted,
         formats: const [BarcodeFormat.qrCode],
         facing: CameraFacing.back,
       );
@@ -769,7 +765,7 @@ class _ManualTab extends StatelessWidget {
 
 // ── QR Scan tab ──────────────────────────────────────────────────────────────
 
-class _ScanTab extends StatelessWidget {
+class _ScanTab extends StatefulWidget {
   const _ScanTab({
     required this.controller,
     required this.onDetect,
@@ -783,12 +779,26 @@ class _ScanTab extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
+  State<_ScanTab> createState() => _ScanTabState();
+}
+
+class _ScanTabState extends State<_ScanTab> {
+  double _zoomScale = 0.0; // 0.0 = 1x, 0.25 = ~1.5x, 0.5 = ~2x
+
+  void _setZoom(double zoom) {
+    setState(() => _zoomScale = zoom);
+    try {
+      widget.controller.setZoomScale(zoom);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const boxSize = 250.0;
+    const boxSize = 280.0;
     const radius = 16.0;
 
     return ValueListenableBuilder<MobileScannerState>(
-      valueListenable: controller,
+      valueListenable: widget.controller,
       builder: (context, state, _) {
         final hasError = state.error != null;
         final isReady = state.isInitialized && !hasError;
@@ -798,7 +808,7 @@ class _ScanTab extends StatelessWidget {
             final w = constraints.maxWidth;
             final h = constraints.maxHeight;
             final cutout = Rect.fromCenter(
-              center: Offset(w / 2, h / 2),
+              center: Offset(w / 2, h / 2 - 20),
               width: boxSize,
               height: boxSize,
             );
@@ -808,9 +818,9 @@ class _ScanTab extends StatelessWidget {
               children: [
                 // 1. Camera feed / placeholder / error
                 MobileScanner(
-                  key: ValueKey('scanner_${controller.hashCode}'),
-                  controller: controller,
-                  onDetect: onDetect,
+                  key: ValueKey('scanner_${widget.controller.hashCode}'),
+                  controller: widget.controller,
+                  onDetect: widget.onDetect,
                   fit: BoxFit.cover,
                   placeholderBuilder: (ctx, child) {
                     return Container(
@@ -899,7 +909,7 @@ class _ScanTab extends StatelessWidget {
                               label: const Text('Coba Lagi',
                                   style: TextStyle(
                                       fontWeight: FontWeight.bold)),
-                              onPressed: onRetry,
+                              onPressed: widget.onRetry,
                             ),
                           ],
                         ),
@@ -938,25 +948,60 @@ class _ScanTab extends StatelessWidget {
                     ),
                   ),
 
-                  // Caption + spinner + tap-to-retry hint under the cutout
+                  // Caption + Zoom controls + hints under the cutout
                   Positioned(
                     left: 0,
                     right: 0,
-                    top: cutout.bottom + 16,
+                    top: cutout.bottom + 14,
                     child: Column(
                       children: [
                         const Text(
-                          'Arahkan QR Code ke dalam kotak',
+                          'Posisikan QR Code di dalam kotak',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Jarak ideal ~20–30 cm • Hindari pantulan lampu',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Quick Zoom Toggle Chips
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _ZoomChip(
+                              label: '1.0x',
+                              active: _zoomScale == 0.0,
+                              onTap: () => _setZoom(0.0),
+                            ),
+                            const SizedBox(width: 8),
+                            _ZoomChip(
+                              label: '1.5x',
+                              active: _zoomScale == 0.25,
+                              onTap: () => _setZoom(0.25),
+                            ),
+                            const SizedBox(width: 8),
+                            _ZoomChip(
+                              label: '2.0x',
+                              active: _zoomScale == 0.5,
+                              onTap: () => _setZoom(0.5),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
                         GestureDetector(
-                          onTap: onRetry,
+                          onTap: widget.onRetry,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),
@@ -982,7 +1027,7 @@ class _ScanTab extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (isScanning) ...[
+                        if (widget.isScanning) ...[
                           const SizedBox(height: 12),
                           const SizedBox(
                             width: 22,
@@ -1012,7 +1057,7 @@ class _ScanTab extends StatelessWidget {
                           color: Colors.white,
                         ),
                         tooltip: 'Muat Ulang Kamera',
-                        onPressed: onRetry,
+                        onPressed: widget.onRetry,
                       ),
                     ),
                   ),
@@ -1035,7 +1080,7 @@ class _ScanTab extends StatelessWidget {
                               ? AppColors.accent
                               : Colors.white,
                         ),
-                        onPressed: () => controller.toggleTorch(),
+                        onPressed: () => widget.controller.toggleTorch(),
                       ),
                     ),
                   ),
@@ -1045,6 +1090,44 @@ class _ScanTab extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _ZoomChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _ZoomChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? AppColors.accent : Colors.black.withAlpha(160),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: active ? AppColors.accent : Colors.white24,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.black : Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 }

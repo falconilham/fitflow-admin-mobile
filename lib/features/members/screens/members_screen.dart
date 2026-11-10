@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
@@ -132,14 +134,21 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: const DrawerMenuButton(),
-        title: const Text('Members'),
+        title: Text(
+          'Members',
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+            color: AppColors.textPrimary,
+          ),
+        ),
         actions: [
           IconButton(
-              icon: const Icon(Icons.upload_file_rounded),
+              icon: const Icon(LucideIcons.fileSpreadsheet, size: 20),
               tooltip: 'Import Member',
               onPressed: () => context.push(AppRoutes.importMember)),
           IconButton(
-              icon: const Icon(Icons.person_add_rounded),
+              icon: const Icon(LucideIcons.userPlus, size: 20),
               tooltip: 'Add Member',
               onPressed: () => context.push(AppRoutes.addMember)),
         ],
@@ -290,13 +299,13 @@ class _MemberCard extends ConsumerWidget {
                 : AppColors.warning;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       onTap: () => context.push('/members/${m.id}'),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
               color: isArchived
                   ? AppColors.textMuted.withAlpha(60)
@@ -317,10 +326,10 @@ class _MemberCard extends ConsumerWidget {
                   child: m.memberPhoto == null || m.memberPhoto!.isEmpty
                       ? Text(
                           (m.name.isNotEmpty ? m.name[0] : '?').toUpperCase(),
-                          style: const TextStyle(
+                          style: GoogleFonts.outfit(
                               color: AppColors.accent,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15),
                         )
                       : null,
                 ),
@@ -331,10 +340,10 @@ class _MemberCard extends ConsumerWidget {
                     children: [
                       Text(
                         m.name,
-                        style: const TextStyle(
+                        style: GoogleFonts.outfit(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w700,
-                            fontSize: 14),
+                            fontSize: 15),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -400,7 +409,7 @@ class _SessionRow extends StatelessWidget {
       if (showSessions) {
         final progress = total > 0 ? (used / total).clamp(0.0, 1.0) : 0.0;
         children.add(_QuotaChip(
-          label: 'Gym',
+          label: 'GYM SESSIONS',
           value: '${total - used}/$total',
           progress: progress,
           color: const Color(0xFF60A5FA),
@@ -408,7 +417,7 @@ class _SessionRow extends StatelessWidget {
       } else if (showMinutes) {
         final progress = totalMin > 0 ? (usedMin / totalMin).clamp(0.0, 1.0) : 0.0;
         children.add(_QuotaChip(
-          label: 'Menit',
+          label: 'MENIT GYM',
           value: '${totalMin - usedMin}/$totalMin',
           progress: progress,
           color: const Color(0xFF60A5FA),
@@ -451,7 +460,7 @@ class _QuotaChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
@@ -459,14 +468,14 @@ class _QuotaChip extends StatelessWidget {
           children: [
             Row(children: [
               Text(label,
-                  style: const TextStyle(
+                  style: GoogleFonts.outfit(
                       color: AppColors.textMuted,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5)),
               const Spacer(),
               Text(value,
-                  style: TextStyle(
+                  style: GoogleFonts.outfit(
                       color: barColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700)),
@@ -498,15 +507,15 @@ class _PtChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.accent.withAlpha(25),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.accent.withAlpha(80)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.fitness_center_rounded,
-            size: 12, color: AppColors.accent),
-        const SizedBox(width: 4),
-        Text('$remaining PT',
-            style: const TextStyle(
+        const Icon(LucideIcons.dumbbell,
+            size: 13, color: AppColors.accent),
+        const SizedBox(width: 5),
+        Text('$remaining PT SESSIONS',
+            style: GoogleFonts.outfit(
                 color: AppColors.accent,
                 fontWeight: FontWeight.w800,
                 fontSize: 11)),
@@ -523,18 +532,19 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withAlpha(70)),
       ),
       child: Text(
         label,
-        style: TextStyle(
+        style: GoogleFonts.outfit(
           color: color,
           fontSize: 10,
           fontWeight: FontWeight.w800,
-          letterSpacing: 0.3,
+          letterSpacing: 0.5,
         ),
       ),
     );
