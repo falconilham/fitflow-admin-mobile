@@ -147,7 +147,7 @@ case "$CHOICE" in
 
     CURRENT_VER=$(get_current_version)
     echo -e "${GREEN}>>> [2/3] Mempublikasikan Shorebird Android Patch untuk SemVer: v$CURRENT_VER...${NC}"
-    shorebird patch android
+    shorebird patch android --allow-asset-diffs
 
     echo ""
     echo -e "${GREEN}>>> [3/3] Selesai!${NC}"
