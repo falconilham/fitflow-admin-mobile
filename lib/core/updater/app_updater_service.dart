@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:restart_app/restart_app.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_theme.dart';
 
@@ -95,6 +96,141 @@ class AppUpdaterService {
     } finally {
       _isChecking = false;
     }
+  }
+
+  /// Directs admin user to the web Mobile App management menu:
+  /// - Admin -> /[gymSubdomain]/mobile-app
+  /// - Fallback -> https://api.fitflow.id/api/mobile/download/admin
+  static void showWebUpdateDialog(
+    BuildContext context, {
+    String? gymSubdomain,
+    String? newVersion,
+  }) {
+    final hasSubdomain = gymSubdomain != null && gymSubdomain.isNotEmpty;
+    final targetWebUrl = hasSubdomain
+        ? 'https://fitflow.id/$gymSubdomain/mobile-app'
+        : 'https://api.fitflow.id/api/mobile/download/admin';
+
+    const directApkUrl = 'https://api.fitflow.id/api/mobile/download/admin';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: AppColors.border, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withAlpha(35),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.blue.withAlpha(120),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: Colors.blue,
+                      size: 26,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pembaruan Admin Diperlukan',
+                        style: GoogleFonts.outfit(
+                          color: AppColors.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Menu Mobile App Web',
+                        style: GoogleFonts.outfit(
+                          color: Colors.blue,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tersedia rilis sistem baru untuk aplikasi FitFlow Admin Mobile. Silakan buka menu "Mobile App" di dashboard web admin Anda atau unduh APK baru langsung.',
+              style: GoogleFonts.outfit(
+                color: AppColors.textSecondary,
+                fontSize: 13.5,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final uri = Uri.parse(directApkUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Text(
+              'Unduh APK Admin',
+              style: GoogleFonts.outfit(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              elevation: 0,
+            ),
+            onPressed: () async {
+              final uri = Uri.parse(targetWebUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Text(
+              'Buka Menu Mobile App',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w800,
+                fontSize: 13.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Initial prompt when an update is found
