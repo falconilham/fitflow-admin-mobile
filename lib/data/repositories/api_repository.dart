@@ -57,12 +57,20 @@ class ApiRepository {
   }
 
   Future<List<Member>> getMembers(int gymId,
-      {String? search, String? status, int page = 1, int limit = 10}) async {
+      {String? search,
+      String? status,
+      String? sortBy,
+      String? sortOrder,
+      int page = 1,
+      int limit = 10}) async {
     final res = await _ref.read(dioProvider).get('/admin/members', queryParameters: {
       'gymId': gymId,
       if (search != null && search.isNotEmpty) 'search': search,
       if (status != null && status != 'all') 'status': status,
-      'page': page, 'limit': limit,
+      if (sortBy != null && sortBy.isNotEmpty) 'sortBy': sortBy,
+      if (sortOrder != null && sortOrder.isNotEmpty) 'sortOrder': sortOrder,
+      'page': page,
+      'limit': limit,
     });
     final data = res.data;
     List<dynamic> rows;

@@ -167,6 +167,8 @@ class Member {
   // Total & completed PT (TrainingSession) history
   final int ptSessionTotal;
   final int ptSessionCompleted;
+  final bool waiverAccepted;
+  final bool parqHasCondition;
 
   Member({
     required this.id,
@@ -196,6 +198,8 @@ class Member {
     this.remainingPtSessions = 0,
     this.ptSessionTotal = 0,
     this.ptSessionCompleted = 0,
+    this.waiverAccepted = false,
+    this.parqHasCondition = false,
   });
 
   bool get isArchived => status.toLowerCase() == 'deleted';
@@ -254,6 +258,8 @@ class Member {
       remainingPtSessions: (json['remainingSessions'] as num?)?.toInt() ?? 0,
       ptSessionTotal: (json['ptSessionTotal'] as num?)?.toInt() ?? 0,
       ptSessionCompleted: (json['ptSessionCompleted'] as num?)?.toInt() ?? 0,
+      waiverAccepted: json['waiverAccepted'] as bool? ?? false,
+      parqHasCondition: json['parqHasCondition'] as bool? ?? false,
     );
   }
 }

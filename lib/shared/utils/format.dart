@@ -34,3 +34,12 @@ String formatDateTime(String? isoString) {
 String formatPrice(int price) {
   return NumberFormat.decimalPattern('id_ID').format(price);
 }
+
+String formatWhatsAppNumber(String phone) {
+  var clean = phone.replaceAll(RegExp(r'[^0-9]'), '');
+  if (clean.startsWith('0')) {
+    clean = '62${clean.substring(1)}';
+  }
+  return clean;
+}
+
