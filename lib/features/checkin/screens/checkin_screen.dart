@@ -36,8 +36,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     WidgetsBinding.instance.addObserver(this);
     _cameraCtrl = MobileScannerController(
       autoStart: true,
+      cameraResolution: const Size(1280, 720),
       detectionSpeed: DetectionSpeed.normal,
-      detectionTimeoutMs: 1500,
+      detectionTimeoutMs: 250,
       formats: const [BarcodeFormat.qrCode],
       facing: CameraFacing.back,
     );
@@ -103,8 +104,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     setState(() {
       _cameraCtrl = MobileScannerController(
         autoStart: true,
+        cameraResolution: const Size(1280, 720),
         detectionSpeed: DetectionSpeed.normal,
-        detectionTimeoutMs: 1500,
+        detectionTimeoutMs: 250,
         formats: const [BarcodeFormat.qrCode],
         facing: CameraFacing.back,
       );
@@ -498,177 +500,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     });
   }
 
-  void _openSimulateModal() {
-    final rawTextCtrl = TextEditingController();
-    final gymId = ref.read(authProvider).valueOrNull?.activeGymId;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (bottomSheetCtx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(bottomSheetCtx).viewInsets.bottom + 16,
-            left: 16,
-            right: 16,
-            top: 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.qr_code_scanner_rounded,
-                      color: AppColors.accent),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Simulasi Scan QR',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.textMuted),
-                    onPressed: () => Navigator.pop(bottomSheetCtx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: rawTextCtrl,
-                style:
-                    const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Tempel teks QR / token / JSON di sini...',
-                  hintStyle: const TextStyle(color: AppColors.textMuted),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.paste_rounded,
-                        color: AppColors.accent),
-                    onPressed: () async {
-                      final clipboardData =
-                          await Clipboard.getData(Clipboard.kTextPlain);
-                      if (clipboardData?.text != null) {
-                        rawTextCtrl.text = clipboardData!.text!;
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Jalankan Simulasi Scan',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: () {
-                    final text = rawTextCtrl.text.trim();
-                    if (text.isEmpty) return;
-                    Navigator.pop(bottomSheetCtx);
-                    _processRawQr(text);
-                  },
-                ),
-              ),
-              if (gymId != null) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'Atau pilih member untuk tes check-in:',
-                  style:
-                      TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 8),
-                FutureBuilder<List<Member>>(
-                  future: ref
-                      .read(apiRepositoryProvider)
-                      .getMembers(gymId, limit: 5),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(12),
-                          child: CircularProgressIndicator(
-                              color: AppColors.accent, strokeWidth: 2),
-                        ),
-                      );
-                    }
-                    final list = snapshot.data ?? [];
-                    if (list.isEmpty) {
-                      return const Text('Tidak ada member ditemukan.',
-                          style: TextStyle(
-                              color: AppColors.textMuted, fontSize: 12));
-                    }
-                    return Column(
-                      children: list.map((m) {
-                        return ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(m.name,
-                              style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13)),
-                          subtitle: Text(
-                              'ID: ${m.id} (User: ${m.userId ?? '-'}) • Status: ${m.status}',
-                              style: const TextStyle(
-                                  color: AppColors.textMuted, fontSize: 11)),
-                          trailing: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.surface,
-                              foregroundColor: AppColors.accent,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              minimumSize: Size.zero,
-                            ),
-                            child: const Text('Tes Scan',
-                                style: TextStyle(fontSize: 11)),
-                            onPressed: () {
-                              Navigator.pop(bottomSheetCtx);
-                              if (m.userId != null) {
-                                final simPayload = jsonEncode({
-                                  'userId': m.userId,
-                                  'gymId': gymId,
-                                  'membershipId': m.id,
-                                });
-                                _processRawQr(simPayload);
-                              }
-                            },
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -679,14 +510,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
             style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.surface,
         elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Simulasi Scan QR',
-            icon: const Icon(Icons.qr_code_scanner_rounded,
-                color: AppColors.accent),
-            onPressed: _openSimulateModal,
-          ),
-        ],
       ),
       body: SafeArea(
         child: Column(
@@ -727,7 +550,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
                     onDetect: _handleQr,
                     isScanning: _isScanning,
                     onRetry: _resetController,
-                    onSimulate: _openSimulateModal,
                   ),
                   _ManualTab(
                     searchCtrl: _searchCtrl,
@@ -953,14 +775,12 @@ class _ScanTab extends StatelessWidget {
     required this.onDetect,
     required this.isScanning,
     required this.onRetry,
-    this.onSimulate,
   });
 
   final MobileScannerController controller;
   final void Function(BarcodeCapture) onDetect;
   final bool isScanning;
   final VoidCallback onRetry;
-  final VoidCallback? onSimulate;
 
   @override
   Widget build(BuildContext context) {
@@ -995,37 +815,18 @@ class _ScanTab extends StatelessWidget {
                   placeholderBuilder: (ctx, child) {
                     return Container(
                       color: AppColors.background,
-                      child: Center(
+                      child: const Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const CircularProgressIndicator(
+                            CircularProgressIndicator(
                                 color: AppColors.accent, strokeWidth: 2.5),
-                            const SizedBox(height: 16),
-                            const Text(
+                            SizedBox(height: 16),
+                            Text(
                               'Menyiapkan kamera...',
                               style: TextStyle(
                                   color: AppColors.textSecondary, fontSize: 13),
                             ),
-                            if (onSimulate != null) ...[
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 10),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10)),
-                                ),
-                                icon: const Icon(Icons.qr_code_scanner_rounded,
-                                    size: 18),
-                                label: const Text('Tes Simulasi Scan QR',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold)),
-                                onPressed: onSimulate,
-                              ),
-                            ],
                           ],
                         ),
                       ),
@@ -1083,47 +884,22 @@ class _ScanTab extends StatelessWidget {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.accent,
-                                    foregroundColor: Colors.black,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10)),
-                                  ),
-                                  icon: const Icon(Icons.refresh_rounded,
-                                      size: 18),
-                                  label: const Text('Coba Lagi',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold)),
-                                  onPressed: onRetry,
-                                ),
-                                if (onSimulate != null) ...[
-                                  const SizedBox(width: 10),
-                                  OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppColors.accent,
-                                      side: const BorderSide(
-                                          color: AppColors.accent),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
-                                    ),
-                                    icon: const Icon(
-                                        Icons.qr_code_scanner_rounded,
-                                        size: 18),
-                                    label: const Text('Tes Simulasi'),
-                                    onPressed: onSimulate,
-                                  ),
-                                ],
-                              ],
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(10)),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded,
+                                  size: 18),
+                              label: const Text('Coba Lagi',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              onPressed: onRetry,
                             ),
                           ],
                         ),
@@ -1179,69 +955,32 @@ class _ScanTab extends StatelessWidget {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            GestureDetector(
-                              onTap: onRetry,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withAlpha(140),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white24),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.refresh_rounded,
-                                        size: 14, color: AppColors.accent),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Muat ulang kamera',
-                                      style: TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                        GestureDetector(
+                          onTap: onRetry,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withAlpha(140),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white24),
                             ),
-                            if (onSimulate != null) ...[
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: onSimulate,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accent.withAlpha(40),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                        color: AppColors.accent.withAlpha(100)),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.qr_code_scanner_rounded,
-                                          size: 14, color: AppColors.accent),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'Tes Simulasi',
-                                        style: TextStyle(
-                                          color: AppColors.accent,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.refresh_rounded,
+                                    size: 14, color: AppColors.accent),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Muat ulang kamera',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ],
+                              ],
+                            ),
+                          ),
                         ),
                         if (isScanning) ...[
                           const SizedBox(height: 12),
