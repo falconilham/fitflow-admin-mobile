@@ -26,6 +26,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _memberIdCtrl = TextEditingController();
+  final _rfidCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   bool _loading = false;
   bool _fetching = true;
@@ -61,6 +62,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _memberIdCtrl.dispose();
+    _rfidCtrl.dispose();
     _addressCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
@@ -82,6 +84,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
       _emailCtrl.text = m.email;
       _phoneCtrl.text = m.phone ?? '';
       _memberIdCtrl.text = m.memberId ?? '';
+      _rfidCtrl.text = m.rfidCardUid ?? '';
       _addressCtrl.text = m.address ?? '';
       _existingPhotoUrl = m.memberPhoto;
       _isSharedPhone = m.referenceMemberId != null;
@@ -229,6 +232,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
         'phone': _phoneCtrl.text.trim(),
         'address': _addressCtrl.text.trim(),
         if (_memberIdCtrl.text.isNotEmpty) 'memberId': _memberIdCtrl.text.trim(),
+        if (_rfidCtrl.text.isNotEmpty) 'rfidCardUid': _rfidCtrl.text.trim(),
         if (_base64Image != null) 'memberPhoto': _base64Image,
         'password': _changePasswordMode ? _passwordCtrl.text.trim() : null,
         if (useRenew) 'renew': true,
@@ -335,6 +339,14 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
                             : const Text('Auto'),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  _label('RFID Card UID (Opsional / Gate Access)'),
+                  TextFormField(
+                    controller: _rfidCtrl,
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(hintText: 'Tap kartu RFID atau masukkan UID'),
                   ),
                   const SizedBox(height: 14),
 

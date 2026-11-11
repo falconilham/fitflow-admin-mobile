@@ -169,6 +169,7 @@ class Member {
   final int ptSessionCompleted;
   final bool waiverAccepted;
   final bool parqHasCondition;
+  final String? rfidCardUid;
 
   Member({
     required this.id,
@@ -200,6 +201,7 @@ class Member {
     this.ptSessionCompleted = 0,
     this.waiverAccepted = false,
     this.parqHasCondition = false,
+    this.rfidCardUid,
   });
 
   bool get isArchived => status.toLowerCase() == 'deleted';
@@ -260,6 +262,7 @@ class Member {
       ptSessionCompleted: (json['ptSessionCompleted'] as num?)?.toInt() ?? 0,
       waiverAccepted: json['waiverAccepted'] as bool? ?? false,
       parqHasCondition: json['parqHasCondition'] as bool? ?? false,
+      rfidCardUid: json['rfidCardUid'] as String?,
     );
   }
 }
@@ -394,6 +397,9 @@ class MembershipPackage {
   final int? totalSessions;
   final int? sessionDuration;
   final bool isActive;
+  final int memberCapacity;
+  final int bonusPtSessions;
+  final String? registrationFeeMode;
 
   MembershipPackage({
     required this.id,
@@ -406,7 +412,13 @@ class MembershipPackage {
     this.totalSessions,
     this.sessionDuration,
     this.isActive = true,
+    this.memberCapacity = 1,
+    this.bonusPtSessions = 0,
+    this.registrationFeeMode = 'PER_PERSON',
   });
+
+  bool get isGroupPackage => memberCapacity > 1;
+  bool get hasPtSessions => type == 'PT' || bonusPtSessions > 0;
 
   factory MembershipPackage.fromJson(Map<String, dynamic> json) {
     return MembershipPackage(
@@ -420,6 +432,38 @@ class MembershipPackage {
       totalSessions: (json['totalSessions'] as num?)?.toInt(),
       sessionDuration: (json['sessionDuration'] as num?)?.toInt(),
       isActive: json['isActive'] as bool? ?? true,
+      memberCapacity: (json['memberCapacity'] as num?)?.toInt() ?? 1,
+      bonusPtSessions: (json['bonusPtSessions'] as num?)?.toInt() ?? 0,
+      registrationFeeMode: json['registrationFeeMode'] as String? ?? 'PER_PERSON',
+    );
+  }
+}
+
+class Trainer {
+  final int id;
+  final String name;
+  final String? specialty;
+  final String? image;
+  final String status;
+  final double? rating;
+
+  Trainer({
+    required this.id,
+    required this.name,
+    this.specialty,
+    this.image,
+    this.status = 'Active',
+    this.rating,
+  });
+
+  factory Trainer.fromJson(Map<String, dynamic> json) {
+    return Trainer(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      specialty: json['specialty'] as String?,
+      image: json['image'] as String?,
+      status: json['status'] as String? ?? 'Active',
+      rating: (json['rating'] as num?)?.toDouble(),
     );
   }
 }
