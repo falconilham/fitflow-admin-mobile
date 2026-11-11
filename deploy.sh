@@ -147,7 +147,7 @@ case "$CHOICE" in
 
     CURRENT_VER=$(get_current_version)
     echo -e "${GREEN}>>> [2/3] Mempublikasikan Shorebird Android Patch untuk SemVer: v$CURRENT_VER...${NC}"
-    shorebird patch android --allow-asset-diffs
+    shorebird patch android --allow-asset-diffs --release-version="$CURRENT_VER"
 
     echo ""
     echo -e "${GREEN}>>> [3/3] Selesai!${NC}"
@@ -165,7 +165,7 @@ case "$CHOICE" in
 
     echo -e "${BLUE}>>> [2/5] Mengompilasi Shorebird Release APK Admin (v$FINAL_VERSION)...${NC}"
     if command -v shorebird &> /dev/null; then
-      shorebird release android --artifact=apk
+      shorebird release android --artifact=apk --flutter-version=3.41.4
     else
       echo -e "${YELLOW}Shorebird tidak ditemukan, menggunakan 'flutter build apk --release'...${NC}"
       flutter build apk --release
