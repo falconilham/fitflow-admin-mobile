@@ -133,10 +133,13 @@ echo ""
 echo -e "  ${YELLOW}3)${NC} Build Release APK Saja (Lokal)"
 echo "     • Hanya kompilasi APK di folder lokal tanpa upload"
 echo ""
+echo -e "  ${YELLOW}4)${NC} ${CYAN}Audit & Hardening Keamanan AI (BLA Counter-REA)${NC}"
+echo "     • Memeriksa & memperkuat artefak DEX/Native terhadap bot dekompilasi AI"
+echo ""
 
 CHOICE="$1"
 if [ -z "$CHOICE" ]; then
-  read -p "Masukkan pilihan Anda [1/2/3]: " CHOICE
+  read -p "Masukkan pilihan Anda [1/2/3/4]: " CHOICE
 fi
 
 case "$CHOICE" in
@@ -178,6 +181,13 @@ case "$CHOICE" in
       exit 1
     fi
 
+    # Audit BLA jika script tersedia
+    if [ -f "./scripts/bla-harden.sh" ]; then
+      echo ""
+      echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Security Audit pada artefak build...${NC}"
+      ./scripts/bla-harden.sh audit 2>/dev/null || true
+    fi
+
     echo -e "${BLUE}>>> [3/5] Menyiapkan folder downloads di server VPS ($VPS_ALIAS)...${NC}"
     ssh "$VPS_ALIAS" "mkdir -p $REMOTE_DOWNLOADS_DIR"
 
@@ -216,11 +226,38 @@ case "$CHOICE" in
       cp "$BUILT_APK" "./$APK_TARGET_NAME"
       echo ""
       echo -e "${GREEN}✓ File APK berhasil disimpan di: ./$APK_TARGET_NAME (v$FINAL_VERSION)${NC}"
+
+      # Audit BLA jika script tersedia
+      if [ -f "./scripts/bla-harden.sh" ]; then
+        echo ""
+        echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Security Audit pada artefak build...${NC}"
+        ./scripts/bla-harden.sh audit 2>/dev/null || true
+      fi
     fi
     ;;
 
+  4|bla|harden|audit)
+    echo ""
+    echo "Pilih aksi BLA (Blind LLM Agents):"
+    echo "  1) Audit paparan artefak terhadap bot AI (audit)"
+    echo "  2) Lakukan hardening proteksi penuh (harden)"
+    echo "  3) Cek kesiapan engine BLA (doctor)"
+    read -p "Pilihan Anda [1/2/3] (default 1): " BLA_ACT
+    case "$BLA_ACT" in
+      2|harden)
+        ./scripts/bla-harden.sh harden
+        ;;
+      3|doctor)
+        ./scripts/bla-harden.sh doctor
+        ;;
+      1|audit|*)
+        ./scripts/bla-harden.sh audit
+        ;;
+    esac
+    ;;
+
   *)
-    echo -e "${RED}Pilihan tidak valid. Silakan jalankan: ./deploy.sh [1|2|3]${NC}"
+    echo -e "${RED}Pilihan tidak valid. Silakan jalankan: ./deploy.sh [1|2|3|4]${NC}"
     exit 1
     ;;
 esac

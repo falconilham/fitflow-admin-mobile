@@ -72,3 +72,7 @@ flutter_*.png
 
 
 node_modules
+
+# Blind LLM Agents (BLA)
+.bla-hardened/
+*.bla-manifest.json
