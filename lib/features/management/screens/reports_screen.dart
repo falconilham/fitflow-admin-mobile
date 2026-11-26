@@ -1,13 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/utils/format.dart';
-import '../../../shared/widgets/drawer_menu_button.dart';
 import '../../../shared/utils/error_handler.dart';
 
 final _peakHoursProvider =
@@ -63,43 +64,62 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        leading: const DrawerMenuButton(),
-        title: const Text('Reports',
-            style: TextStyle(
-                color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.textMuted),
-            onPressed: () {
-              ref.invalidate(_peakHoursProvider);
-              ref.invalidate(_investorReportProvider);
-            },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.menuReports,
+                    style: GoogleFonts.figtree(
+                      color: AppColors.textPrimary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded,
+                      color: AppColors.textMuted),
+                  onPressed: () {
+                    ref.invalidate(_peakHoursProvider);
+                    ref.invalidate(_investorReportProvider);
+                  },
+                ),
+              ],
+            ),
           ),
-        ],
-        bottom: TabBar(
-          controller: _tab,
-          indicatorColor: AppColors.accent,
-          indicatorWeight: 2.5,
-          labelColor: AppColors.accent,
-          unselectedLabelColor: AppColors.textMuted,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-          tabs: const [
-            Tab(text: 'Executive'),
-            Tab(text: 'Peak Hours'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tab,
-        children: const [
-          _ExecutiveTab(),
-          _PeakHoursTab(),
+          Container(
+            color: AppColors.surface,
+            child: TabBar(
+              controller: _tab,
+              indicatorColor: AppColors.accent,
+              indicatorWeight: 2.5,
+              labelColor: AppColors.accent,
+              unselectedLabelColor: AppColors.textMuted,
+              labelStyle:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              tabs: const [
+                Tab(text: 'Executive'),
+                Tab(text: 'Peak Hours'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tab,
+              children: const [
+                _ExecutiveTab(),
+                _PeakHoursTab(),
+              ],
+            ),
+          ),
         ],
       ),
     );

@@ -228,6 +228,20 @@ class AppDrawerContent extends ConsumerWidget {
                     isSidebar: isSidebar,
                   ),
                   _DrawerItem(
+                    icon: Icons.shopping_bag_rounded,
+                    title: 'Paket PT',
+                    route: AppRoutes.ptPackages,
+                    isSubItem: true,
+                    isSidebar: isSidebar,
+                  ),
+                  _DrawerItem(
+                    icon: Icons.card_membership_rounded,
+                    title: 'Membership PT',
+                    route: AppRoutes.ptMemberships,
+                    isSubItem: true,
+                    isSidebar: isSidebar,
+                  ),
+                  _DrawerItem(
                     icon: Icons.groups_rounded,
                     title: 'Group Classes',
                     route: AppRoutes.classes,
@@ -386,6 +400,12 @@ class AppDrawerContent extends ConsumerWidget {
                 icon: Icons.person_rounded,
                 title: 'Profile Settings',
                 route: AppRoutes.profile,
+                isSidebar: isSidebar,
+              ),
+              _DrawerItem(
+                icon: Icons.help_outline_rounded,
+                title: 'Pusat Bantuan',
+                route: AppRoutes.helpCenter,
                 isSidebar: isSidebar,
               ),
               ListTile(

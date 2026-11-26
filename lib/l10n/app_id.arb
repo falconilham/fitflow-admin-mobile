@@ -1,0 +1,170 @@
+{
+  "@@locale": "id",
+  "appBrandName": "fitflow.",
+  "roleAdminOwner": "ADMIN / OWNER",
+  "roleAdmin": "ADMIN",
+  "navSummary": "Ringkasan",
+  "navMembers": "Member",
+  "navCheckIn": "Check-in",
+  "navReports": "Laporan",
+  "navMenu": "Menu",
+  "navProfile": "Profil",
+  "greetingMorning": "Selamat pagi, {name}",
+  "@greetingMorning": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingAfternoon": "Selamat siang, {name}",
+  "@greetingAfternoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingEvening": "Selamat sore, {name}",
+  "@greetingEvening": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "greetingNight": "Selamat malam, {name}",
+  "@greetingNight": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "summaryTitle": "Ringkasan gym",
+  "todayChip": "Hari ini",
+  "checkInTodayLabel": "Check-in hari ini",
+  "qrManualBreakdown": "{qr} QR · {manual} manual",
+  "@qrManualBreakdown": {
+    "placeholders": {
+      "qr": { "type": "int" },
+      "manual": { "type": "int" }
+    }
+  },
+  "insideGymLabel": "Di dalam gym",
+  "membersTrainingLabel": "Member sedang berlatih",
+  "quickAccessTitle": "Akses cepat",
+  "allMenuAction": "Semua menu",
+  "quickCheckIn": "Check-in",
+  "quickMember": "Member",
+  "quickPos": "POS",
+  "quickClasses": "Kelas & jadwal",
+  "todayAttendanceTitle": "Kehadiran hari ini",
+  "checkInCountLabel": "{count} check-in",
+  "@checkInCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "liveBadge": "Langsung",
+  "recentCheckInsTitle": "Check-in terbaru",
+  "seeAllAction": "Lihat semua",
+  "noCheckInsToday": "Belum ada check-in hari ini",
+  "selectBranchTitle": "Pilih Gym Cabang",
+  "allMenuTitle": "Semua menu",
+  "allMenuSubtitle": "Kelola operasional dan bisnis dalam satu tempat.",
+  "searchMenuHint": "Cari menu...",
+  "menuSectionOperational": "Resepsionis",
+  "menuSectionSalesPackages": "Penjualan & Paket",
+  "menuSectionBusiness": "BISNIS",
+  "menuSectionMain": "MENU UTAMA",
+  "menuSectionFinance": "Keuangan & Laporan",
+  "menuSectionStaffTeam": "Tim & Staf",
+  "menuSectionMarketing": "Marketing & Komunitas",
+  "menuSectionSystemAssets": "Fasilitas & Sistem",
+  "menuSectionAccount": "AKUN",
+  "menuDashboard": "Dashboard",
+  "menuNotifications": "Notifikasi",
+  "menuMember": "Anggota",
+  "menuCheckIn": "Check In",
+  "menuSessions": "Sesi Training",
+  "menuClasses": "Kelas Grup",
+  "menuLeaderboard": "Papan Peringkat",
+  "menuTrainer": "Pelatih",
+  "menuPtPackages": "Paket PT",
+  "menuPtMemberships": "Membership PT",
+  "menuLeads": "Prospek / Leads CRM",
+  "menuMembershipPackages": "Paket Membership",
+  "menuAddonServices": "Add-On & Rental",
+  "menuPromotions": "Promo & Voucher",
+  "menuPos": "Kasir (POS)",
+  "menuProduct": "Produk",
+  "menuTransactions": "Riwayat Transaksi",
+  "menuCashShifts": "Shift & Laci Kas",
+  "menuRevenue": "Analitik Pendapatan",
+  "menuExpenses": "Pengeluaran",
+  "menuPayroll": "Penggajian (Payroll)",
+  "menuPayslips": "Slip Gaji",
+  "menuPaymentGateway": "Payment Gateway",
+  "menuManagers": "Admin",
+  "menuStaffAttendance": "Kehadiran Staf",
+  "menuStaffSchedules": "Jadwal Staf",
+  "menuAttendanceStats": "Statistik Staf",
+  "menuEquipment": "Peralatan Gym",
+  "menuReports": "Laporan",
+  "menuActivity": "Log Aktivitas",
+  "menuAnnouncements": "Pengumuman",
+  "menuSettings": "Pengaturan",
+  "menuProfile": "Profil Admin",
+  "menuHelpCenter": "Panduan Pengguna",
+  "menuCheckUpdate": "Cek update",
+  "menuSearchEmpty": "Menu tidak ditemukan",
+  "activeBranchDefault": "FitFlow Gym",
+  "branchManagementHint": "Ketuk untuk ganti cabang",
+  "checkInTitle": "Check-in",
+  "checkInSubtitle": "Sambut member, catat kehadiran.",
+  "scanQrTab": "Scan QR",
+  "manualCheckInTab": "Check-in manual",
+  "searchMemberPlaceholder": "Cari nama atau ID member...",
+  "membersFoundCount": "{count} member ditemukan",
+  "@membersFoundCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "membershipActiveBadge": "Membership aktif",
+  "membershipExpiredBadge": "Kedaluwarsa",
+  "membershipSuspendedBadge": "Ditangguhkan",
+  "membershipInactiveBadge": "Tidak aktif",
+  "checkedInBadge": "Sudah check-in",
+  "notCheckedInLabel": "Belum check-in",
+  "validUntilLabel": "Hingga {date}",
+  "@validUntilLabel": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "gymSessionsLabel": "GYM SESSIONS: {remaining}/{total}",
+  "@gymSessionsLabel": {
+    "placeholders": {
+      "remaining": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "confirmCheckInBtn": "Konfirmasi check-in",
+  "confirmCheckOutBtn": "Konfirmasi check-out",
+  "searchMemberPrompt": "Cari nama, email, HP, atau ID member untuk check-in manual.",
+  "noMembersFound": "Member tidak ditemukan",
+  "checkInSuccessTitle": "Check-in Berhasil!",
+  "checkOutSuccessTitle": "Check-out Berhasil!",
+  "checkInDeniedTitle": "Akses Ditolak",
+  "ptPackagesTitle": "Paket PT",
+  "ptPackagesEmpty": "Belum ada paket PT",
+  "ptMembershipsTitle": "Membership PT",
+  "ptMembershipsEmpty": "Belum ada membership PT aktif",
+  "helpCenterTitle": "Panduan Pengguna",
+  "helpCenterSubtitle": "Panduan cepat operasional & dukungan FitFlow",
+  "logoutAction": "Keluar",
+  "profileMenuLabel": "Profil Admin",
+  "retryAction": "Coba Lagi"
+}

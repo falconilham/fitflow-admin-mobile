@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 
 class FitFlowLogo extends StatelessWidget {
@@ -24,7 +23,6 @@ class FitFlowLogo extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppColors.accent,
         borderRadius: BorderRadius.circular(size * 0.22),
         boxShadow: [
           BoxShadow(
@@ -34,12 +32,12 @@ class FitFlowLogo extends StatelessWidget {
           ),
         ],
       ),
-      child: Center(
-        child: Icon(
-          LucideIcons.dumbbell,
-          size: size * 0.58,
-          color: Colors.black,
-        ),
+      clipBehavior: Clip.antiAlias,
+      child: Image.asset(
+        'assets/images/app_icon.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
       ),
     );
   }

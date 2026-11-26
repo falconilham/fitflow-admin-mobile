@@ -38,6 +38,19 @@ import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/management/screens/equipment_screen.dart';
 import '../../features/attendance/screens/staff_schedule_screen.dart';
 import '../../features/attendance/screens/attendance_statistics_screen.dart';
+import '../../features/menu/screens/all_menu_screen.dart';
+import '../../features/pt/screens/pt_packages_screen.dart';
+import '../../features/pt/screens/pt_memberships_screen.dart';
+import '../../features/help/screens/help_center_screen.dart';
+import '../../features/leads/screens/leads_screen.dart';
+import '../../features/memberships/screens/membership_packages_screen.dart';
+import '../../features/addon_services/screens/addon_services_screen.dart';
+import '../../features/promotions/screens/promotions_screen.dart';
+import '../../features/finance/screens/cash_shifts_screen.dart';
+import '../../features/finance/screens/payroll_screen.dart';
+import '../../features/finance/screens/payslips_screen.dart';
+import '../../features/finance/screens/payment_gateway_screen.dart';
+import '../../features/attendance/screens/staff_attendance_screen.dart';
 
 abstract class AppRoutes {
   static const splash = '/';
@@ -45,6 +58,19 @@ abstract class AppRoutes {
   static const dashboard = '/dashboard';
   static const checkin = '/checkin';
   static const members = '/members';
+  static const allMenu = '/menu';
+  static const ptPackages = '/pt-packages';
+  static const ptMemberships = '/pt-memberships';
+  static const leads = '/leads';
+  static const memberships = '/memberships';
+  static const addonServices = '/addon-services';
+  static const promotions = '/promotions';
+  static const cashShifts = '/cash-shifts';
+  static const payroll = '/payroll';
+  static const payslips = '/payslips';
+  static const paymentGateway = '/payment-gateway';
+  static const staffAttendance = '/attendance';
+  static const helpCenter = '/help-center';
   static const addMember = '/members/add';
   static const importMember = '/members/import';
   static const pos = '/pos';
@@ -141,6 +167,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: AppRoutes.dashboard, builder: (_, __) => const DashboardScreen()),
           GoRoute(path: AppRoutes.checkin,   builder: (_, __) => const CheckInScreen()),
           GoRoute(path: AppRoutes.members,   builder: (_, __) => const MembersScreen()),
+          GoRoute(path: AppRoutes.allMenu,   builder: (_, __) => const AllMenuScreen()),
+          GoRoute(path: AppRoutes.ptPackages, builder: (_, __) => const PtPackagesScreen()),
+          GoRoute(path: AppRoutes.ptMemberships, builder: (_, __) => const PtMembershipsScreen()),
+          GoRoute(path: AppRoutes.leads, builder: (_, __) => const LeadsScreen()),
+          GoRoute(path: AppRoutes.memberships, builder: (_, __) => const MembershipPackagesScreen()),
+          GoRoute(path: AppRoutes.addonServices, builder: (_, __) => const AddonServicesScreen()),
+          GoRoute(path: AppRoutes.promotions, builder: (_, __) => const PromotionsScreen()),
+          GoRoute(path: AppRoutes.cashShifts, builder: (_, __) => const CashShiftsScreen()),
+          GoRoute(path: AppRoutes.payroll, builder: (_, __) => const PayrollScreen()),
+          GoRoute(path: AppRoutes.payslips, builder: (_, __) => const PayslipsScreen()),
+          GoRoute(path: AppRoutes.paymentGateway, builder: (_, __) => const PaymentGatewayScreen()),
+          GoRoute(path: AppRoutes.staffAttendance, builder: (_, __) => const StaffAttendanceScreen()),
+          GoRoute(path: AppRoutes.helpCenter, builder: (_, __) => const HelpCenterScreen()),
           GoRoute(path: AppRoutes.pos,      builder: (_, __) => const PosScreen()),
           GoRoute(path: AppRoutes.products, builder: (_, __) => const ProductsScreen()),
           GoRoute(path: AppRoutes.profile,   builder: (_, __) => const ProfileScreen()),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/error_handler.dart';
+import '../../../shared/widgets/drawer_menu_button.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -16,6 +17,7 @@ class StaffSchedulesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const DrawerMenuButton(),
         title: const Text('Staff Schedules'),
         backgroundColor: AppColors.surface,
       ),

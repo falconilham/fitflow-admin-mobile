@@ -112,12 +112,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        leading: context.canPop()
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-                onPressed: () => context.pop(),
-              )
-            : const DrawerMenuButton(),
+        leading: const DrawerMenuButton(),
         title: const Text(
           'Notifikasi',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),

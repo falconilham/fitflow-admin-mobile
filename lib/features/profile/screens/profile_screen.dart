@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/providers/auth_provider.dart';
-import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final admin = ref.watch(authProvider).valueOrNull?.admin;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(leading: const DrawerMenuButton(), title: const Text('Profile')),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      body: ListView(padding: const EdgeInsets.fromLTRB(20, 12, 20, 24), children: [
+        Text(
+          l10n.menuProfile,
+          style: GoogleFonts.figtree(
+            color: AppColors.textPrimary,
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 18),
         Center(
           child: Column(children: [
             CircleAvatar(
@@ -41,7 +52,7 @@ class ProfileScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                admin?.isOwner == true ? 'Owner' : 'Admin',
+                admin?.roleBadgeLabel ?? 'ADMIN',
                 style: const TextStyle(color: AppColors.accent,
                     fontWeight: FontWeight.w600, fontSize: 12),
               ),
@@ -61,7 +72,7 @@ class ProfileScreen extends ConsumerWidget {
                 value: admin?.gym?.name ?? admin?.gymName ?? '-'),
             const Divider(height: 1, color: AppColors.border),
             _InfoTile(icon: Icons.badge_outlined, label: 'Role',
-                value: admin?.isOwner == true ? 'Owner' : 'Admin'),
+                value: admin?.roleBadgeLabel ?? 'ADMIN'),
           ]),
         ),
         const SizedBox(height: 32),

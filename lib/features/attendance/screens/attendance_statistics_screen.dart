@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/error_handler.dart';
+import '../../../shared/widgets/drawer_menu_button.dart';
 import '../providers/attendance_providers.dart';
 
 class AttendanceStatisticsScreen extends ConsumerWidget {
@@ -16,6 +17,7 @@ class AttendanceStatisticsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const DrawerMenuButton(),
         title: const Text('Attendance Stats'),
         backgroundColor: AppColors.surface,
       ),

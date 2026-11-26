@@ -1,19 +1,25 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
-import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../features/dashboard/providers/dashboard_providers.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/utils/error_handler.dart';
+import '../../../shared/utils/format.dart';
 
 class CheckInScreen extends ConsumerStatefulWidget {
   const CheckInScreen({super.key});
+
   @override
   ConsumerState<CheckInScreen> createState() => _CheckInScreenState();
 }
@@ -21,14 +27,16 @@ class CheckInScreen extends ConsumerStatefulWidget {
 class _CheckInScreenState extends ConsumerState<CheckInScreen>
     with WidgetsBindingObserver {
   final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
   late MobileScannerController _cameraCtrl;
-  String _tab =
-      'scan'; // 'scan' | 'manual' — default to QR scan as primary check-in interface
+  String _tab = 'scan'; // 'scan' | 'manual'
   List<Member> _members = [];
+  int? _selectedMemberId;
   bool _searching = false;
   bool _isScanning = false;
   bool _isStartingCamera = false;
   final Map<int, bool> _checkingIn = {};
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -45,16 +53,16 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _debounce?.cancel();
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     _cameraCtrl.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_cameraCtrl.value.isInitialized) {
-      return;
-    }
+    if (!_cameraCtrl.value.isInitialized) return;
 
     if (state == AppLifecycleState.paused) {
       _stopCamera();
@@ -72,9 +80,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     } catch (e) {
       debugPrint('[CheckIn] Camera start error: $e');
     } finally {
-      if (mounted) {
-        _isStartingCamera = false;
-      }
+      if (mounted) _isStartingCamera = false;
     }
   }
 
@@ -112,21 +118,57 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     _isStartingCamera = false;
   }
 
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    if (value.trim().isEmpty) {
+      setState(() {
+        _members = [];
+        _selectedMemberId = null;
+      });
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 350), _search);
+  }
+
   Future<void> _search() async {
-    if (_searchCtrl.text.trim().isEmpty) return;
+    final query = _searchCtrl.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _members = [];
+        _selectedMemberId = null;
+      });
+      return;
+    }
     final gymId = ref.read(authProvider).valueOrNull?.activeGymId;
     if (gymId == null) return;
+
     setState(() => _searching = true);
     try {
       final rows = await ref
           .read(apiRepositoryProvider)
-          .getMembers(gymId, search: _searchCtrl.text.trim(), limit: 20);
-      setState(() => _members = rows);
+          .getMembers(gymId, search: query, limit: 20);
+      if (!mounted) return;
+      setState(() {
+        _members = rows;
+        if (rows.isEmpty) {
+          _selectedMemberId = null;
+        } else if (_selectedMemberId == null ||
+            !rows.any((m) => m.id == _selectedMemberId)) {
+          final firstActive = rows.firstWhere(
+            (m) => m.displayStatus.toLowerCase() == 'active',
+            orElse: () => rows.first,
+          );
+          _selectedMemberId = firstActive.id;
+        }
+      });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Gagal mencari member: $e'),
-            backgroundColor: AppColors.error));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ErrorHandler.parse(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _searching = false);
@@ -138,11 +180,13 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     if (gymId == null || member.userId == null) return;
     setState(() => _checkingIn[member.id] = true);
     try {
-      final res = await ref
-          .read(apiRepositoryProvider)
-          .checkInByQr(gymId, member.userId!, member.id);
+      final res = await ref.read(apiRepositoryProvider).checkInByQr(
+            gymId,
+            member.userId!,
+            member.id,
+            method: 'manual',
+          );
 
-      // Defensive parsing of response
       final resStatus =
           res['access']?.toString() ?? res['status']?.toString() ?? '';
       final isGranted = resStatus == 'granted' || resStatus == 'success';
@@ -153,6 +197,12 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
       final name = memberMap?['name']?.toString() ?? member.name;
       final message =
           res['message']?.toString() ?? res['status']?.toString() ?? '';
+
+      if (isGranted) {
+        ref.invalidate(dashboardStatsProvider);
+        ref.invalidate(recentCheckInsProvider);
+        unawaited(_search());
+      }
 
       if (mounted) _showResult(isGranted, isCheckout, name, message);
     } catch (e) {
@@ -179,9 +229,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
             parsed['userId'] as int,
             parsed['membershipId'] as int,
             qrToken: parsed['qrToken'] as String?,
+            method: 'qr',
           );
 
-      // Defensive parsing of response
       final resStatus =
           res['access']?.toString() ?? res['status']?.toString() ?? '';
       final isGranted = resStatus == 'granted' || resStatus == 'success';
@@ -192,6 +242,11 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
       final name = memberMap?['name']?.toString() ?? '';
       final message =
           res['message']?.toString() ?? res['status']?.toString() ?? '';
+
+      if (isGranted) {
+        ref.invalidate(dashboardStatsProvider);
+        ref.invalidate(recentCheckInsProvider);
+      }
 
       if (mounted) _showResult(isGranted, isCheckout, name, message);
     } catch (e) {
@@ -212,7 +267,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
     try {
       final trimmed = raw.trim();
 
-      // 0. Check if URL containing token or deep link
       if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
         final uri = Uri.tryParse(trimmed);
         if (uri != null) {
@@ -240,7 +294,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
         }
       }
 
-      // 1. Signed cryptographic JWT token (Format: header.payload.signature)
       if (trimmed.contains('.') && trimmed.split('.').length == 3) {
         final parts = trimmed.split('.');
         final payloadNormalized = base64Url.normalize(parts[1]);
@@ -251,7 +304,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
         if (jwtData is Map) {
           final userId = int.tryParse(jwtData['userId']?.toString() ?? '') ?? 0;
           final membershipId = int.tryParse(
-                  (jwtData['memberId'] ?? jwtData['membershipId'])?.toString() ??
+                  (jwtData['memberId'] ?? jwtData['membershipId'])
+                          ?.toString() ??
                       '') ??
               0;
           final gymId = int.tryParse(jwtData['gymId']?.toString() ?? '') ??
@@ -266,19 +320,20 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
         }
       }
 
-      // 2. Try JSON payload
       if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
         try {
           final decodedJson = jsonDecode(trimmed);
           if (decodedJson is Map) {
-            final userId = int.tryParse(decodedJson['userId']?.toString() ?? '') ?? 0;
+            final userId =
+                int.tryParse(decodedJson['userId']?.toString() ?? '') ?? 0;
             final membershipId = int.tryParse(
                     (decodedJson['memberId'] ?? decodedJson['membershipId'])
                             ?.toString() ??
                         '') ??
                 0;
-            final gymId = int.tryParse(decodedJson['gymId']?.toString() ?? '') ??
-                (ref.read(authProvider).valueOrNull?.activeGymId ?? 0);
+            final gymId =
+                int.tryParse(decodedJson['gymId']?.toString() ?? '') ??
+                    (ref.read(authProvider).valueOrNull?.activeGymId ?? 0);
 
             if (userId > 0 || membershipId > 0) {
               return {
@@ -293,23 +348,23 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
         } catch (_) {}
       }
 
-      // 3. Fallback: regex for legacy loose json
       final decoded = trimmed.replaceAll("'", '"');
       final Map<String, dynamic> json = Map<String, dynamic>.from(
-          RegExp(r'"(\w+)":\s*(\d+)').allMatches(decoded).fold(
-              <String, dynamic>{},
-              (map, m) => map..['${m.group(1)}'] = int.parse(m.group(2)!)));
+        RegExp(r'"(\w+)":\s*(\d+)').allMatches(decoded).fold(
+          <String, dynamic>{},
+          (map, m) => map..['${m.group(1)}'] = int.parse(m.group(2)!),
+        ),
+      );
       if (json.containsKey('userId') &&
           json.containsKey('gymId') &&
           json.containsKey('membershipId')) {
         return {
           'userId': json['userId'] as int,
           'gymId': json['gymId'] as int,
-          'membershipId': json['membershipId'] as int
+          'membershipId': json['membershipId'] as int,
         };
       }
 
-      // 4. Fallback: colon separated strings
       final parts = trimmed.split(':');
       if (parts.length == 2) {
         final gymId = ref.read(authProvider).valueOrNull?.activeGymId;
@@ -339,9 +394,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
   }
 
   void _showResult(bool granted, bool checkout, String name, String message) {
+    final l10n = AppLocalizations.of(context)!;
     int countdown = 3;
     Timer? timer;
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: !granted,
       builder: (ctx) {
@@ -351,15 +407,11 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
               timer = Timer.periodic(const Duration(seconds: 1), (t) {
                 if (countdown > 1) {
                   if (dialogCtx.mounted) {
-                    setDialogState(() {
-                      countdown--;
-                    });
+                    setDialogState(() => countdown--);
                   }
                 } else {
                   t.cancel();
-                  if (dialogCtx.mounted) {
-                    Navigator.of(ctx).pop();
-                  }
+                  if (dialogCtx.mounted) Navigator.of(ctx).pop();
                 }
               });
             }
@@ -387,13 +439,13 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
                     child: Text(
                       granted
                           ? (checkout
-                              ? 'Check-out Berhasil'
-                              : 'Check-in Berhasil')
-                          : 'Check-in Ditolak',
-                      style: TextStyle(
+                              ? l10n.checkOutSuccessTitle
+                              : l10n.checkInSuccessTitle)
+                          : l10n.checkInDeniedTitle,
+                      style: GoogleFonts.figtree(
                         color: granted ? AppColors.success : AppColors.error,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
                       ),
                     ),
                   ),
@@ -406,71 +458,35 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
                   if (name.isNotEmpty) ...[
                     Text(
                       name,
-                      style: const TextStyle(
+                      style: GoogleFonts.figtree(
                         color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 6),
                   ],
                   Text(
-                    message.isNotEmpty ? message : (granted ? 'Akses diberikan' : 'Akses ditolak'),
-                    style: TextStyle(
-                      color: granted
-                          ? AppColors.textSecondary
-                          : const Color(0xFFFF8B8B),
+                    message.isNotEmpty
+                        ? message
+                        : (granted ? 'Selamat berlatih!' : 'Akses ditolak.'),
+                    style: GoogleFonts.figtree(
+                      color: AppColors.textSecondary,
                       fontSize: 14,
                     ),
                   ),
-                  if (!granted) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black26,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              size: 16, color: AppColors.textMuted),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Pesan penolakan tidak tertutup otomatis agar dapat di-screenshot.',
-                              style: TextStyle(
-                                  color: AppColors.textMuted, fontSize: 11),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
               actions: [
-                if (!granted) ...[
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      setState(() => _tab = 'manual');
-                    },
-                    icon: const Icon(Icons.search_rounded, size: 18),
-                    label: const Text('Check-in Manual'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.accent,
-                    ),
-                  ),
-                  ElevatedButton(
+                if (!granted)
+                  TextButton(
                     onPressed: () => Navigator.of(ctx).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.error,
-                      foregroundColor: Colors.white,
+                    child: const Text(
+                      'Tutup',
+                      style: TextStyle(color: AppColors.textSecondary),
                     ),
-                    child: const Text('Tutup / Scan Ulang'),
-                  ),
-                ] else ...[
+                  )
+                else
                   ElevatedButton(
                     onPressed: () {
                       timer?.cancel();
@@ -478,11 +494,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.black,
+                      foregroundColor: AppColors.background,
                     ),
                     child: Text('OK (${countdown}s)'),
                   ),
-                ],
               ],
             );
           },
@@ -498,104 +513,237 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final stats = ref.watch(dashboardStatsProvider).valueOrNull;
+    final checkInsToday = stats?.dailyCheckIns ?? 0;
+    final currentlyInside = stats?.currentlyInside ?? 0;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        leading: const DrawerMenuButton(),
-        title: const Text('Check-In',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Tab bar
-            Container(
-              color: AppColors.surface,
-              child: Row(
-                children: [
-                  _TabBtn(
-                    label: '📷 Scan QR',
-                    active: _tab == 'scan',
-                    onTap: () {
-                      if (_tab == 'scan') return;
-                      setState(() => _tab = 'scan');
-                      _startCamera();
-                    },
-                  ),
-                  _TabBtn(
-                    label: '🔍 Manual',
-                    active: _tab == 'manual',
-                    onTap: () {
-                      if (_tab == 'manual') return;
-                      setState(() => _tab = 'manual');
-                      _stopCamera();
-                    },
-                  ),
-                ],
-              ),
-            ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.checkInTitle,
+                        style: GoogleFonts.figtree(
+                          color: AppColors.textPrimary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.checkInSubtitle,
+                        style: GoogleFonts.figtree(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
-            Expanded(
-              child: IndexedStack(
-                index: _tab == 'scan' ? 0 : 1,
-                children: [
-                  _ScanTab(
-                    controller: _cameraCtrl,
-                    onDetect: _handleQr,
-                    isScanning: _isScanning,
-                    onRetry: _resetController,
+                      // ── Ringkasan kehadiran bar ──────────────────────────
+                      Container(
+                        height: 74,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    checkInsToday.toString(),
+                                    style: GoogleFonts.figtree(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    l10n.checkInTodayLabel,
+                                    style: GoogleFonts.figtree(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 42,
+                              color: AppColors.border,
+                            ),
+                            const SizedBox(width: 18),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    currentlyInside.toString(),
+                                    style: GoogleFonts.figtree(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    l10n.insideGymLabel,
+                                    style: GoogleFonts.figtree(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ── Metode check-in Segmented Toggle ─────────────────
+                      Container(
+                        height: 44,
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            _SegmentTab(
+                              icon: LucideIcons.qrCode,
+                              label: l10n.scanQrTab,
+                              active: _tab == 'scan',
+                              onTap: () {
+                                if (_tab == 'scan') return;
+                                setState(() => _tab = 'scan');
+                                _startCamera();
+                              },
+                            ),
+                            _SegmentTab(
+                              icon: LucideIcons.pencil,
+                              label: l10n.manualCheckInTab,
+                              active: _tab == 'manual',
+                              onTap: () {
+                                if (_tab == 'manual') return;
+                                setState(() => _tab = 'manual');
+                                _stopCamera();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  _ManualTab(
-                    searchCtrl: _searchCtrl,
-                    members: _members,
-                    searching: _searching,
-                    checkingIn: _checkingIn,
-                    onSearch: _search,
-                    onCheckIn: _checkInManual,
+                ),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: IndexedStack(
+                    index: _tab == 'scan' ? 0 : 1,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: _ScanTab(
+                            controller: _cameraCtrl,
+                            onDetect: _handleQr,
+                            isScanning: _isScanning,
+                            onRetry: _resetController,
+                          ),
+                        ),
+                      ),
+                      _ManualTab(
+                        searchCtrl: _searchCtrl,
+                        searchFocus: _searchFocus,
+                        members: _members,
+                        selectedMemberId: _selectedMemberId,
+                        searching: _searching,
+                        checkingIn: _checkingIn,
+                        onChanged: _onSearchChanged,
+                        onSearch: _search,
+                        onSelect: (id) =>
+                            setState(() => _selectedMemberId = id),
+                        onCheckIn: _checkInManual,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
     );
   }
 }
 
-// ── Tab bar button ──────────────────────────────────────────────────────────
+class _SegmentTab extends StatelessWidget {
+  const _SegmentTab({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
-class _TabBtn extends StatelessWidget {
-  const _TabBtn(
-      {required this.label, required this.active, required this.onTap});
+  final IconData icon;
   final String label;
   final bool active;
   final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: active ? AppColors.accent : Colors.transparent,
-                width: 2,
-              ),
-            ),
+            color: active ? AppColors.accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active ? AppColors.accent : AppColors.textMuted,
-                fontWeight: FontWeight.w600,
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: active ? AppColors.background : AppColors.textSecondary,
               ),
-            ),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.figtree(
+                    color:
+                        active ? AppColors.background : AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -608,157 +756,493 @@ class _TabBtn extends StatelessWidget {
 class _ManualTab extends StatelessWidget {
   const _ManualTab({
     required this.searchCtrl,
+    required this.searchFocus,
     required this.members,
+    required this.selectedMemberId,
     required this.searching,
     required this.checkingIn,
+    required this.onChanged,
     required this.onSearch,
+    required this.onSelect,
     required this.onCheckIn,
   });
+
   final TextEditingController searchCtrl;
+  final FocusNode searchFocus;
   final List<Member> members;
+  final int? selectedMemberId;
   final bool searching;
   final Map<int, bool> checkingIn;
+  final ValueChanged<String> onChanged;
   final VoidCallback onSearch;
+  final ValueChanged<int> onSelect;
   final Future<void> Function(Member) onCheckIn;
+
+  String _maskPhone(String? raw) {
+    final p = (raw ?? '').trim();
+    if (p.isEmpty) return '';
+    if (p.length <= 6) return p;
+    final prefix = p.substring(0, 4);
+    final suffix = p.substring(p.length - 4);
+    return '$prefix •••• $suffix';
+  }
+
+  String _memberIdentitySubtitle(Member m) {
+    final idStr = (m.memberId ?? '').trim().isNotEmpty
+        ? m.memberId!.trim()
+        : 'MEM-${m.id}';
+    final masked = _maskPhone(m.phone);
+    if (masked.isEmpty) return idStr;
+    return '$idStr · $masked';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final hasQuery = searchCtrl.text.trim().isNotEmpty;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: searchCtrl,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    hintText: 'Cari nama atau Member ID...',
-                    prefixIcon:
-                        Icon(Icons.search_rounded, color: AppColors.textMuted),
-                  ),
-                  onSubmitted: (_) => onSearch(),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: TextField(
+            controller: searchCtrl,
+            focusNode: searchFocus,
+            onChanged: onChanged,
+            onSubmitted: (_) => onSearch(),
+            style: GoogleFonts.figtree(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+            ),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: AppColors.card,
+              hintText: l10n.searchMemberPlaceholder,
+              hintStyle: GoogleFonts.figtree(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+              prefixIcon: const Icon(
+                LucideIcons.search,
+                size: 19,
+                color: AppColors.accent,
+              ),
+              suffixIcon: hasQuery
+                  ? IconButton(
+                      icon: const Icon(
+                        LucideIcons.x,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                      onPressed: () {
+                        searchCtrl.clear();
+                        onChanged('');
+                      },
+                    )
+                  : null,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: hasQuery ? AppColors.accent : AppColors.border,
                 ),
               ),
-              const SizedBox(width: 10),
-              ElevatedButton(onPressed: onSearch, child: const Text('Cari')),
-            ],
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: AppColors.accent,
+                  width: 1.5,
+                ),
+              ),
+            ),
           ),
         ),
+        const SizedBox(height: 12),
+        if (hasQuery && !searching)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              l10n.membersFoundCount(members.length),
+              style: GoogleFonts.figtree(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
         Expanded(
           child: searching
               ? const Center(
                   child: CircularProgressIndicator(
-                      color: AppColors.accent, strokeWidth: 2))
+                    color: AppColors.accent,
+                    strokeWidth: 2,
+                  ),
+                )
               : members.isEmpty
                   ? Center(
-                      child: Text(
-                        searchCtrl.text.isNotEmpty
-                            ? 'Member tidak ditemukan'
-                            : 'Cari member untuk check-in',
-                        style: const TextStyle(color: AppColors.textMuted),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          hasQuery
+                              ? l10n.noMembersFound
+                              : l10n.searchMemberPrompt,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.figtree(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(20, 2, 20, 24),
                       itemCount: members.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (_, i) {
                         final m = members[i];
-                        final isExpired = m.status.toLowerCase() != 'active';
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: isExpired
-                                ? const Color(0xFF1A0A0A)
-                                : AppColors.card,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: isExpired
-                                    ? AppColors.error.withAlpha(76)
-                                    : AppColors.border),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      m.name,
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    if (m.memberId != null)
-                                      Text(
-                                        'ID: ${m.memberId}',
-                                        style: const TextStyle(
-                                            color: AppColors.textMuted,
-                                            fontSize: 12),
-                                      ),
-                                    Container(
-                                      margin: const EdgeInsets.only(top: 6),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: (isExpired
-                                                ? AppColors.error
-                                                : AppColors.success)
-                                            .withAlpha(38),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        m.status,
-                                        style: TextStyle(
-                                          color: isExpired
-                                              ? AppColors.error
-                                              : AppColors.success,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isExpired
-                                      ? AppColors.surface
-                                      : AppColors.accent,
-                                  foregroundColor: isExpired
-                                      ? AppColors.textMuted
-                                      : Colors.black,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 10),
-                                ),
-                                onPressed: checkingIn[m.id] == true
-                                    ? null
-                                    : () => onCheckIn(m),
-                                child: checkingIn[m.id] == true
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.black),
-                                      )
-                                    : const Text('Check-in',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
+                        final isSelected = m.id == selectedMemberId;
+                        final status = m.displayStatus.toLowerCase();
+                        final isActive = status == 'active';
+                        final isExpired = status == 'expired';
+                        final isSuspended = status == 'suspended';
+
+                        if (isSelected) {
+                          return _SelectedMemberCard(
+                            member: m,
+                            identitySubtitle: _memberIdentitySubtitle(m),
+                            isActive: isActive,
+                            isExpired: isExpired,
+                            isSuspended: isSuspended,
+                            isSubmitting: checkingIn[m.id] == true,
+                            onConfirm: () => onCheckIn(m),
+                          );
+                        }
+
+                        return _CompactMemberCard(
+                          member: m,
+                          identitySubtitle: _memberIdentitySubtitle(m),
+                          isActive: isActive,
+                          isExpired: isExpired,
+                          isSuspended: isSuspended,
+                          onTap: () => onSelect(m.id),
                         );
                       },
                     ),
         ),
       ],
+    );
+  }
+}
+
+class _SelectedMemberCard extends StatelessWidget {
+  const _SelectedMemberCard({
+    required this.member,
+    required this.identitySubtitle,
+    required this.isActive,
+    required this.isExpired,
+    required this.isSuspended,
+    required this.isSubmitting,
+    required this.onConfirm,
+  });
+
+  final Member member;
+  final String identitySubtitle;
+  final bool isActive;
+  final bool isExpired;
+  final bool isSuspended;
+  final bool isSubmitting;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isVisitPkg = member.hasVisitPackage ||
+        (member.packageType ?? '').toUpperCase() == 'SESSION';
+    final packageTitle = (member.packageName ?? '').trim().isNotEmpty
+        ? member.packageName!.trim()
+        : 'Membership Reguler';
+
+    final statusBg = isActive
+        ? AppColors.successPillBg
+        : AppColors.warningPillBg;
+    final statusFg = isActive
+        ? AppColors.successPillText
+        : AppColors.warningPillText;
+    final statusText = isActive
+        ? l10n.membershipActiveBadge
+        : isExpired
+            ? l10n.membershipExpiredBadge
+            : isSuspended
+                ? l10n.membershipSuspendedBadge
+                : l10n.membershipInactiveBadge;
+
+    final attendanceText = member.checkedInToday
+        ? l10n.checkedInBadge
+        : l10n.notCheckedInLabel;
+
+    final ctaLabel = member.isInsideGym
+        ? l10n.confirmCheckOutBtn
+        : l10n.confirmCheckInBtn;
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.accent, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  member.name,
+                  style: GoogleFonts.figtree(
+                    color: AppColors.textPrimary,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(
+                LucideIcons.check,
+                size: 20,
+                color: AppColors.accent,
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            identitySubtitle,
+            style: GoogleFonts.figtree(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusBg,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Text(
+              statusText,
+              style: GoogleFonts.figtree(
+                color: statusFg,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      packageTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.figtree(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    if (isVisitPkg && member.totalSessions != null)
+                      Text(
+                        l10n.gymSessionsLabel(
+                          member.remainingSessions ?? 0,
+                          member.totalSessions ?? 0,
+                        ),
+                        style: GoogleFonts.figtree(
+                          color: AppColors.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    else
+                      Text(
+                        l10n.validUntilLabel(formatDate(member.endDate)),
+                        style: GoogleFonts.figtree(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                attendanceText,
+                style: GoogleFonts.figtree(
+                  color: member.checkedInToday
+                      ? AppColors.infoPillText
+                      : AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: ElevatedButton.icon(
+              onPressed: isSubmitting ? null : onConfirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    isActive ? AppColors.accent : AppColors.iconSurface,
+                foregroundColor:
+                    isActive ? AppColors.background : AppColors.textSecondary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.background,
+                      ),
+                    )
+                  : Icon(
+                      LucideIcons.check,
+                      size: 17,
+                      color: isActive
+                          ? AppColors.background
+                          : AppColors.textSecondary,
+                    ),
+              label: Text(
+                ctaLabel,
+                style: GoogleFonts.figtree(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactMemberCard extends StatelessWidget {
+  const _CompactMemberCard({
+    required this.member,
+    required this.identitySubtitle,
+    required this.isActive,
+    required this.isExpired,
+    required this.isSuspended,
+    required this.onTap,
+  });
+
+  final Member member;
+  final String identitySubtitle;
+  final bool isActive;
+  final bool isExpired;
+  final bool isSuspended;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    late final Color pillBg;
+    late final Color pillFg;
+    late final String pillLabel;
+
+    if (isExpired) {
+      pillBg = AppColors.warningPillBg;
+      pillFg = AppColors.warningPillText;
+      pillLabel = l10n.membershipExpiredBadge;
+    } else if (isSuspended) {
+      pillBg = AppColors.warningPillBg;
+      pillFg = AppColors.warningPillText;
+      pillLabel = l10n.membershipSuspendedBadge;
+    } else if (member.checkedInToday) {
+      pillBg = AppColors.infoPillBg;
+      pillFg = AppColors.infoPillText;
+      pillLabel = l10n.checkedInBadge;
+    } else if (isActive) {
+      pillBg = AppColors.successPillBg;
+      pillFg = AppColors.successPillText;
+      pillLabel = l10n.membershipActiveBadge;
+    } else {
+      pillBg = AppColors.iconSurface;
+      pillFg = AppColors.textSecondary;
+      pillLabel = l10n.membershipInactiveBadge;
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 62,
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    member.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.figtree(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    identitySubtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.figtree(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                color: pillBg,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Text(
+                pillLabel,
+                style: GoogleFonts.figtree(
+                  color: pillFg,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -783,7 +1267,7 @@ class _ScanTab extends StatefulWidget {
 }
 
 class _ScanTabState extends State<_ScanTab> {
-  double _zoomScale = 0.0; // 0.0 = 1x, 0.25 = ~1.5x, 0.5 = ~2x
+  double _zoomScale = 0.0;
 
   void _setZoom(double zoom) {
     setState(() => _zoomScale = zoom);
@@ -794,7 +1278,7 @@ class _ScanTabState extends State<_ScanTab> {
 
   @override
   Widget build(BuildContext context) {
-    const boxSize = 280.0;
+    const boxSize = 250.0;
     const radius = 16.0;
 
     return ValueListenableBuilder<MobileScannerState>(
@@ -808,7 +1292,7 @@ class _ScanTabState extends State<_ScanTab> {
             final w = constraints.maxWidth;
             final h = constraints.maxHeight;
             final cutout = Rect.fromCenter(
-              center: Offset(w / 2, h / 2 - 20),
+              center: Offset(w / 2, h / 2 - 24),
               width: boxSize,
               height: boxSize,
             );
@@ -816,7 +1300,6 @@ class _ScanTabState extends State<_ScanTab> {
             return Stack(
               fit: StackFit.expand,
               children: [
-                // 1. Camera feed / placeholder / error
                 MobileScanner(
                   key: ValueKey('scanner_${widget.controller.hashCode}'),
                   controller: widget.controller,
@@ -824,18 +1307,22 @@ class _ScanTabState extends State<_ScanTab> {
                   fit: BoxFit.cover,
                   placeholderBuilder: (ctx, child) {
                     return Container(
-                      color: AppColors.background,
+                      color: AppColors.card,
                       child: const Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             CircularProgressIndicator(
-                                color: AppColors.accent, strokeWidth: 2.5),
+                              color: AppColors.accent,
+                              strokeWidth: 2.5,
+                            ),
                             SizedBox(height: 16),
                             Text(
                               'Menyiapkan kamera...',
                               style: TextStyle(
-                                  color: AppColors.textSecondary, fontSize: 13),
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
@@ -859,7 +1346,7 @@ class _ScanTabState extends State<_ScanTab> {
                     }
 
                     return Container(
-                      color: AppColors.background,
+                      color: AppColors.card,
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Center(
                         child: Column(
@@ -871,10 +1358,13 @@ class _ScanTabState extends State<_ScanTab> {
                                 color: AppColors.error.withAlpha(30),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.videocam_off_rounded,
-                                  size: 48, color: AppColors.error),
+                              child: const Icon(
+                                Icons.videocam_off_rounded,
+                                size: 42,
+                                color: AppColors.error,
+                              ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                             Text(
                               title,
                               style: const TextStyle(
@@ -884,31 +1374,33 @@ class _ScanTabState extends State<_ScanTab> {
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
                               desc,
                               style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 16),
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.accent,
-                                foregroundColor: Colors.black,
+                                foregroundColor: AppColors.background,
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
                                 shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(10)),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
-                              icon: const Icon(Icons.refresh_rounded,
-                                  size: 18),
-                              label: const Text('Coba Lagi',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold)),
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text(
+                                'Coba Lagi',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                               onPressed: widget.onRetry,
                             ),
                           ],
@@ -917,10 +1409,7 @@ class _ScanTabState extends State<_ScanTab> {
                     );
                   },
                 ),
-
-                // 2. Overlays only when camera is initialized and has no error
                 if (isReady) ...[
-                  // Dim overlay with see-through cutout (CustomPaint)
                   IgnorePointer(
                     child: CustomPaint(
                       size: Size(w, h),
@@ -931,8 +1420,6 @@ class _ScanTabState extends State<_ScanTab> {
                       ),
                     ),
                   ),
-
-                  // Corner brackets around the cutout
                   Positioned(
                     left: cutout.left,
                     top: cutout.top,
@@ -947,8 +1434,6 @@ class _ScanTabState extends State<_ScanTab> {
                       ),
                     ),
                   ),
-
-                  // Caption + Zoom controls + hints under the cutout
                   Positioned(
                     left: 0,
                     right: 0,
@@ -959,23 +1444,12 @@ class _ScanTabState extends State<_ScanTab> {
                           'Posisikan QR Code di dalam kotak',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Jarak ideal ~20–30 cm • Hindari pantulan lampu',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Quick Zoom Toggle Chips
+                        const SizedBox(height: 10),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -998,37 +1472,8 @@ class _ScanTabState extends State<_ScanTab> {
                             ),
                           ],
                         ),
-
-                        const SizedBox(height: 12),
-                        GestureDetector(
-                          onTap: widget.onRetry,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withAlpha(140),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.refresh_rounded,
-                                    size: 14, color: AppColors.accent),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Muat ulang kamera',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                         if (widget.isScanning) ...[
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           const SizedBox(
                             width: 22,
                             height: 22,
@@ -1041,11 +1486,9 @@ class _ScanTabState extends State<_ScanTab> {
                       ],
                     ),
                   ),
-
-                  // Reload / refresh camera button
                   Positioned(
-                    top: 16,
-                    right: 68,
+                    top: 14,
+                    right: 64,
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.black.withAlpha(120),
@@ -1056,16 +1499,13 @@ class _ScanTabState extends State<_ScanTab> {
                           Icons.refresh_rounded,
                           color: Colors.white,
                         ),
-                        tooltip: 'Muat Ulang Kamera',
                         onPressed: widget.onRetry,
                       ),
                     ),
                   ),
-
-                  // Torch toggle
                   Positioned(
-                    top: 16,
-                    right: 16,
+                    top: 14,
+                    right: 14,
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.black.withAlpha(120),
@@ -1177,7 +1617,6 @@ class _CornerBracketPainter extends CustomPainter {
 
     const armLen = 28.0;
 
-    // Top-left
     canvas.drawPath(
       Path()
         ..moveTo(0, armLen + radius)
@@ -1189,7 +1628,6 @@ class _CornerBracketPainter extends CustomPainter {
         ..lineTo(armLen + radius, 0),
       paint,
     );
-    // Top-right
     canvas.drawPath(
       Path()
         ..moveTo(size.width - armLen - radius, 0)
@@ -1201,7 +1639,6 @@ class _CornerBracketPainter extends CustomPainter {
         ..lineTo(size.width, armLen + radius),
       paint,
     );
-    // Bottom-right
     canvas.drawPath(
       Path()
         ..moveTo(size.width, size.height - armLen - radius)
@@ -1213,7 +1650,6 @@ class _CornerBracketPainter extends CustomPainter {
         ..lineTo(size.width - armLen - radius, size.height),
       paint,
     );
-    // Bottom-left
     canvas.drawPath(
       Path()
         ..moveTo(armLen + radius, size.height)

@@ -5,6 +5,8 @@ class AdminInfo {
   final String role;
   final int? gymId;
   final GymInfo? gym;
+  final List<GymInfo> ownedGyms;
+  final List<String>? permissions;
 
   AdminInfo({
     required this.id,
@@ -13,47 +15,162 @@ class AdminInfo {
     required this.role,
     this.gymId,
     this.gym,
+    this.ownedGyms = const [],
+    this.permissions,
   });
 
   bool get isOwner {
     final r = role.toLowerCase();
     return r == 'owner' || r == 'super_admin' || r == 'superadmin';
   }
+
+  String get roleBadgeLabel {
+    switch (role.trim().toLowerCase()) {
+      case 'owner':
+        return 'OWNER';
+      case 'super_admin':
+      case 'superadmin':
+        return 'SUPER ADMIN';
+      case 'admin':
+        return 'ADMIN';
+      case 'manager':
+        return 'MANAGER';
+      case 'sales':
+        return 'SALES';
+      case 'cashier':
+        return 'CASHIER';
+      case 'receptionist':
+        return 'RECEPTIONIST';
+      case 'staff':
+        return 'STAFF';
+      default:
+        final normalized = role.trim().replaceAll('_', ' ');
+        return normalized.isEmpty ? 'ADMIN' : normalized.toUpperCase();
+    }
+  }
+
   String? get gymName => gym?.name;
 
   factory AdminInfo.fromJson(Map<String, dynamic> json) {
+    final rawGym = json['gym'] ?? json['Gym'];
+    final rawOwned = (json['ownedGyms'] ?? json['OwnedGyms']) as List?;
+    final rawPerms = json['permissions'] as List?;
     return AdminInfo(
-      id: json['id'] as int? ?? 0,
+      id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       role: json['role'] as String? ?? '',
       gymId: (json['gymId'] as num?)?.toInt(),
-      gym: json['gym'] != null ? GymInfo.fromJson(json['gym'] as Map<String, dynamic>) : null,
+      gym: rawGym is Map<String, dynamic>
+          ? GymInfo.fromJson(rawGym)
+          : (rawGym is Map
+              ? GymInfo.fromJson(Map<String, dynamic>.from(rawGym))
+              : null),
+      ownedGyms: rawOwned
+              ?.whereType<Map>()
+              .map((e) => GymInfo.fromJson(Map<String, dynamic>.from(e)))
+              .toList() ??
+          const [],
+      permissions: rawPerms?.map((e) => e.toString()).toList(),
     );
   }
 }
 
+List<String>? _parseFeatureKeys(dynamic rawFeatures) {
+  if (rawFeatures is! List) return null;
+  final keys = <String>[];
+  for (final item in rawFeatures) {
+    if (item is String && item.trim().isNotEmpty) {
+      keys.add(item.trim());
+    } else if (item is Map) {
+      final key = item['feature']?.toString().trim() ?? '';
+      if (key.isNotEmpty) keys.add(key);
+    }
+  }
+  return keys;
+}
+
 class GymInfo {
+  final int id;
   final String name;
-  final List<String> features;
-  GymInfo({required this.name, this.features = const []});
+  final List<String>? features;
+  GymInfo({this.id = 0, required this.name, this.features});
   factory GymInfo.fromJson(Map<String, dynamic> json) => GymInfo(
+        id: (json['id'] as num?)?.toInt() ?? 0,
         name: json['name'] as String? ?? '',
-        features: (json['features'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+        features: _parseFeatureKeys(json['features']),
       );
 }
 
 class GymSimple {
   final int id;
   final String name;
+  final List<String>? features;
 
-  GymSimple({required this.id, required this.name});
+  GymSimple({required this.id, required this.name, this.features});
 
   factory GymSimple.fromJson(Map<String, dynamic> json) {
     return GymSimple(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
+      features: _parseFeatureKeys(json['features']),
     );
+  }
+}
+
+class AccessControl {
+  static List<String>? resolveActiveFeatures({
+    required AdminInfo? admin,
+    required List<GymSimple> gyms,
+    required int? activeGymId,
+  }) {
+    if (activeGymId != null) {
+      for (final g in gyms) {
+        if (g.id == activeGymId && g.features != null) return g.features;
+      }
+      if (admin != null) {
+        for (final g in admin.ownedGyms) {
+          if (g.id == activeGymId && g.features != null) return g.features;
+        }
+        if (admin.gym != null &&
+            (admin.gym!.id == activeGymId || admin.gym!.id == 0) &&
+            admin.gym!.features != null) {
+          return admin.gym!.features;
+        }
+      }
+    }
+    return admin?.gym?.features;
+  }
+
+  static bool canAccess({
+    required AdminInfo? admin,
+    required List<String>? gymFeatures,
+    String? feature,
+    String? permission,
+    List<String>? roles,
+  }) {
+    if (admin == null) return false;
+    final roleLower = admin.role.toLowerCase();
+
+    if (roles != null && !roles.contains(roleLower)) {
+      return false;
+    }
+
+    final isPrivileged = admin.isOwner;
+    final permToCheck = permission ?? feature;
+    if (!isPrivileged && permToCheck != null && admin.permissions != null) {
+      final hasPerm = admin.permissions!
+          .any((p) => p.toLowerCase() == permToCheck.toLowerCase());
+      if (!hasPerm) return false;
+    }
+
+    if (feature != null && gymFeatures != null) {
+      final hasFeature =
+          gymFeatures.any((f) => f.toLowerCase() == feature.toLowerCase());
+      if (!hasFeature) return false;
+    }
+
+    return true;
   }
 }
 
@@ -64,6 +181,10 @@ class DashboardStats {
   final int suspendedMembers;
   final int archivedMembers;
   final int dailyCheckIns;
+  final int qrCheckIns;
+  final int manualCheckIns;
+  final int currentlyInside;
+  final List<int> todayHourlyCheckIns;
   final double revenue;
   final double expenses;
   final double dailyExpenses;
@@ -77,6 +198,10 @@ class DashboardStats {
     this.suspendedMembers = 0,
     this.archivedMembers = 0,
     required this.dailyCheckIns,
+    this.qrCheckIns = 0,
+    this.manualCheckIns = 0,
+    this.currentlyInside = 0,
+    this.todayHourlyCheckIns = const [],
     this.revenue = 0.0,
     required this.expenses,
     this.dailyExpenses = 0.0,
@@ -88,6 +213,7 @@ class DashboardStats {
     final expenses = (json['expenses'] ?? json['totalExpenses'] ?? 0) as num;
     final revenue = (json['revenue'] ?? 0) as num;
     final dailyExpenses = (json['dailyExpenses'] ?? 0) as num;
+    final rawHourly = json['todayHourlyCheckIns'] as List<dynamic>? ?? const [];
     return DashboardStats(
       totalMembers: (json['totalMembers'] as num?)?.toInt() ?? 0,
       activeMembers: (json['activeMembers'] as num?)?.toInt() ?? 0,
@@ -95,6 +221,10 @@ class DashboardStats {
       suspendedMembers: (json['suspendedMembers'] as num?)?.toInt() ?? 0,
       archivedMembers: (json['archivedMembers'] as num?)?.toInt() ?? 0,
       dailyCheckIns: (json['dailyCheckIns'] as num?)?.toInt() ?? 0,
+      qrCheckIns: (json['qrCheckIns'] as num?)?.toInt() ?? 0,
+      manualCheckIns: (json['manualCheckIns'] as num?)?.toInt() ?? 0,
+      currentlyInside: (json['currentlyInside'] as num?)?.toInt() ?? 0,
+      todayHourlyCheckIns: rawHourly.map((e) => (e as num?)?.toInt() ?? 0).toList(),
       revenue: revenue.toDouble(),
       expenses: expenses.toDouble(),
       dailyExpenses: dailyExpenses.toDouble(),
@@ -170,6 +300,9 @@ class Member {
   final bool waiverAccepted;
   final bool parqHasCondition;
   final String? rfidCardUid;
+  final String? packageType;
+  final bool checkedInToday;
+  final bool isInsideGym;
 
   Member({
     required this.id,
@@ -202,6 +335,9 @@ class Member {
     this.waiverAccepted = false,
     this.parqHasCondition = false,
     this.rfidCardUid,
+    this.packageType,
+    this.checkedInToday = false,
+    this.isInsideGym = false,
   });
 
   bool get isArchived => status.toLowerCase() == 'deleted';
@@ -263,6 +399,9 @@ class Member {
       waiverAccepted: json['waiverAccepted'] as bool? ?? false,
       parqHasCondition: json['parqHasCondition'] as bool? ?? false,
       rfidCardUid: json['rfidCardUid'] as String?,
+      packageType: json['packageType'] as String? ?? (json['MembershipPackage']?['type'] as String?),
+      checkedInToday: json['checkedInToday'] as bool? ?? false,
+      isInsideGym: json['isInsideGym'] as bool? ?? false,
     );
   }
 }
@@ -579,12 +718,18 @@ class CheckInRecord {
   final String memberName;
   final String? memberPhoto;
   final String checkedInAt;
+  final String? packageName;
+  final String? method;
+  final String? status;
 
   CheckInRecord({
     required this.id,
     required this.memberName,
     this.memberPhoto,
     required this.checkedInAt,
+    this.packageName,
+    this.method,
+    this.status,
   });
 
   factory CheckInRecord.fromJson(Map<String, dynamic> json) {
@@ -592,7 +737,14 @@ class CheckInRecord {
       id: (json['id'] as num?)?.toInt() ?? 0,
       memberName: json['memberName'] as String? ?? json['name'] as String? ?? 'Unknown',
       memberPhoto: json['memberPhoto'] as String?,
-      checkedInAt: json['checkedInAt'] as String? ?? json['createdAt'] as String? ?? '',
+      checkedInAt: json['checkedInAt'] as String? ??
+          json['timestamp'] as String? ??
+          json['createdAt'] as String? ??
+          '',
+      packageName: json['packageName'] as String? ??
+          (json['Member']?['MembershipPackage']?['name'] as String?),
+      method: json['method'] as String?,
+      status: json['status'] as String?,
     );
   }
 }

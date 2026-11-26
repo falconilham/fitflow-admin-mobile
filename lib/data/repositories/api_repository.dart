@@ -179,8 +179,14 @@ class ApiRepository {
   }
 
   // Packages
-  Future<List<MembershipPackage>> getPackages(int gymId) async {
-    final res = await _ref.read(dioProvider).get('/admin/membership-packages', queryParameters: {'gymId': gymId});
+  Future<List<MembershipPackage>> getPackages(int gymId, {String? type}) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/membership-packages',
+      queryParameters: {
+        'gymId': gymId,
+        if (type != null && type.isNotEmpty) 'type': type,
+      },
+    );
     final data = res.data;
     if (data is! List) return [];
     return data.map((e) => MembershipPackage.fromJson(e as Map<String, dynamic>)).toList();
@@ -206,12 +212,13 @@ class ApiRepository {
     int userId,
     int membershipId, {
     String? qrToken,
+    String method = 'qr',
   }) async {
     final payload = <String, dynamic>{
       'gymId': gymId,
       'userId': userId,
       'membershipId': membershipId,
-      'method': 'qr',
+      'method': method,
     };
     if (qrToken != null && qrToken.isNotEmpty) {
       payload['qrToken'] = qrToken;
@@ -222,7 +229,10 @@ class ApiRepository {
   }
 
   Future<List<CheckInRecord>> getRecentCheckIns(int gymId, {int limit = 5}) async {
-    final res = await _ref.read(dioProvider).get('/admin/check-ins', queryParameters: {'gymId': gymId, 'limit': limit});
+    final res = await _ref.read(dioProvider).get(
+      '/admin/check-ins',
+      queryParameters: {'gymId': gymId, 'limit': limit, 'status': 'granted'},
+    );
     final data = res.data;
     List<dynamic> list;
     if (data is List) {
@@ -396,6 +406,18 @@ class ApiRepository {
     if (data is List) return data.cast<Map<String, dynamic>>();
     if (data is Map) return (data['data'] as List? ?? data['trainerPackages'] as List? ?? data['packages'] as List? ?? []).cast<Map<String, dynamic>>();
     return [];
+  }
+
+  Future<void> createTrainerPackage(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post('/admin/trainer-packages', data: {...data, 'gymId': gymId});
+  }
+
+  Future<void> updateTrainerPackage(int id, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).put('/admin/trainer-packages/$id', data: data);
+  }
+
+  Future<void> deleteTrainerPackage(int id) async {
+    await _ref.read(dioProvider).delete('/admin/trainer-packages/$id');
   }
 
   Future<Map<String, dynamic>> getRevenueAnalytics(int gymId, {String period = 'monthly'}) async {
@@ -722,6 +744,289 @@ class ApiRepository {
     } catch (_) {
       return false;
     }
+  }
+
+  // Leads CRM
+  Future<Map<String, dynamic>> getLeads(
+    int gymId, {
+    String? stage,
+    String? search,
+  }) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/leads',
+      queryParameters: {
+        'gymId': gymId,
+        if (stage != null && stage.isNotEmpty && stage != 'ALL') 'stage': stage,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<void> createLead(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post('/admin/leads', data: {...data, 'gymId': gymId});
+  }
+
+  Future<void> updateLead(int id, int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).put('/admin/leads/$id', data: {...data, 'gymId': gymId});
+  }
+
+  Future<void> deleteLead(int id, int gymId) async {
+    await _ref.read(dioProvider).delete(
+      '/admin/leads/$id',
+      queryParameters: {'gymId': gymId},
+    );
+  }
+
+  // Add-On & Rental
+  Future<List<Map<String, dynamic>>> getAddonServices(int gymId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/addon-services',
+      queryParameters: {'gymId': gymId},
+    );
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> createAddonService(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post(
+      '/admin/addon-services',
+      data: {...data, 'gymId': gymId},
+    );
+  }
+
+  Future<void> updateAddonService(int id, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).put('/admin/addon-services/$id', data: data);
+  }
+
+  Future<void> deleteAddonService(int id) async {
+    await _ref.read(dioProvider).delete('/admin/addon-services/$id');
+  }
+
+  Future<List<Map<String, dynamic>>> getAddonUsages(int gymId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/addon-usage',
+      queryParameters: {'gymId': gymId},
+    );
+    final raw = res.data;
+    final list = raw is Map ? (raw['usages'] ?? raw['data'] ?? const []) : raw;
+    if (list is! List) return [];
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> returnAddonUsage(int usageId) async {
+    await _ref.read(dioProvider).put('/admin/addon-usage/$usageId/return');
+  }
+
+  // Promotions & Vouchers
+  Future<List<Map<String, dynamic>>> getPromotions(int gymId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/api/v1/promotions',
+      queryParameters: {'gymId': gymId},
+    );
+    final raw = res.data;
+    final list = raw is Map ? (raw['promotions'] ?? const []) : raw;
+    if (list is! List) return [];
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> createPromotion(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post(
+      '/api/v1/promotions',
+      data: {...data, 'gymId': gymId},
+    );
+  }
+
+  Future<void> updatePromotion(int id, int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).put(
+      '/api/v1/promotions/$id',
+      data: {...data, 'gymId': gymId},
+    );
+  }
+
+  Future<void> deletePromotion(int id, int gymId) async {
+    await _ref.read(dioProvider).delete(
+      '/api/v1/promotions/$id',
+      queryParameters: {'gymId': gymId},
+    );
+  }
+
+  // Cash Shifts & Drawer
+  Future<Map<String, dynamic>> getCurrentCashShift(int gymId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/cash-shifts/current',
+      queryParameters: {'gymId': gymId},
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<Map<String, dynamic>> getCashShifts(int gymId, {String? status}) async {
+    final res = await _ref.read(dioProvider).get(
+      '/admin/cash-shifts',
+      queryParameters: {
+        'gymId': gymId,
+        if (status != null && status != 'ALL') 'status': status,
+      },
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<void> openCashShift(
+    int gymId, {
+    required int startingCash,
+    String? notes,
+  }) async {
+    await _ref.read(dioProvider).post(
+      '/admin/cash-shifts/open',
+      data: {
+        'gymId': gymId,
+        'startingCash': startingCash,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      },
+    );
+  }
+
+  Future<void> closeCashShift(
+    int gymId, {
+    required int actualCash,
+    int? shiftId,
+    String? handoverNotes,
+  }) async {
+    await _ref.read(dioProvider).post(
+      '/admin/cash-shifts/close',
+      data: {
+        'gymId': gymId,
+        'actualCash': actualCash,
+        if (shiftId != null) 'shiftId': shiftId,
+        if (handoverNotes != null && handoverNotes.isNotEmpty)
+          'handoverNotes': handoverNotes,
+      },
+    );
+  }
+
+  // Payroll & Payslips
+  Future<Map<String, dynamic>> getPayrollRuns(int gymId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/api/v1/payroll/runs',
+      queryParameters: {'gymId': gymId},
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<void> generatePayrollRun(int gymId, Map<String, dynamic> data) async {
+    await _ref.read(dioProvider).post(
+      '/api/v1/payroll/runs/generate',
+      data: {...data, 'gymId': gymId},
+    );
+  }
+
+  Future<void> approvePayrollRun(int id, int gymId) async {
+    await _ref.read(dioProvider).post(
+      '/api/v1/payroll/runs/$id/approve',
+      data: {'gymId': gymId},
+    );
+  }
+
+  Future<void> payPayrollRun(
+    int id,
+    int gymId, {
+    String paymentMethod = 'Transfer',
+  }) async {
+    await _ref.read(dioProvider).post(
+      '/api/v1/payroll/runs/$id/pay',
+      data: {'gymId': gymId, 'paymentMethod': paymentMethod},
+    );
+  }
+
+  Future<Map<String, dynamic>> getPayslips(int gymId, {String? search}) async {
+    final res = await _ref.read(dioProvider).get(
+      '/api/v1/payroll/payslips',
+      queryParameters: {
+        'gymId': gymId,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  // Payment Gateway
+  Future<Map<String, dynamic>> getPaymentSettings(int gymId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/api/v1/payments/settings',
+      queryParameters: {'gymId': gymId},
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<Map<String, dynamic>> updatePaymentSettings(
+    int gymId,
+    Map<String, dynamic> data,
+  ) async {
+    final res = await _ref.read(dioProvider).put(
+      '/api/v1/payments/settings',
+      data: {...data, 'gymId': gymId},
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<Map<String, dynamic>> testPaymentConnection(
+    int gymId,
+    Map<String, dynamic> data,
+  ) async {
+    final res = await _ref.read(dioProvider).post(
+      '/api/v1/payments/test-connection',
+      data: {...data, 'gymId': gymId},
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  // Staff Attendance
+  Future<Map<String, dynamic>?> getMyAttendance(int gymId) async {
+    final res = await _ref.read(dioProvider).get(
+      '/attendance/me',
+      queryParameters: {'gymId': gymId},
+    );
+    if (res.data is Map) {
+      return Map<String, dynamic>.from(res.data as Map);
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> getAttendanceHistory(
+    int gymId, {
+    String? date,
+  }) async {
+    final res = await _ref.read(dioProvider).get(
+      '/attendance/history',
+      queryParameters: {
+        'gymId': gymId,
+        if (date != null && date.isNotEmpty) 'date': date,
+      },
+    );
+    final data = res.data;
+    if (data is! List) return [];
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> staffCheckIn(int gymId, {String? locationName}) async {
+    await _ref.read(dioProvider).post(
+      '/attendance/check-in',
+      data: {
+        'gymId': gymId,
+        if (locationName != null) 'locationName': locationName,
+      },
+    );
+  }
+
+  Future<void> staffCheckOut(int gymId, {String? locationName}) async {
+    await _ref.read(dioProvider).post(
+      '/attendance/check-out',
+      data: {
+        'gymId': gymId,
+        if (locationName != null) 'locationName': locationName,
+      },
+    );
   }
 }
 

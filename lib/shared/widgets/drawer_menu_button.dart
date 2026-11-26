@@ -1,29 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import 'main_shell.dart';
+import '../../core/router/app_router.dart';
+
+const _bottomNavRoots = <String>{
+  AppRoutes.dashboard,
+  AppRoutes.members,
+  AppRoutes.checkin,
+  AppRoutes.reports,
+  AppRoutes.profile,
+};
 
 class DrawerMenuButton extends StatelessWidget {
   const DrawerMenuButton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Only show the hamburger button on smaller screens where the drawer is hidden
-    return LayoutBuilder(builder: (context, constraints) {
-      // In AppBar, constraints usually won't give us the full screen width.
-      // So we use MediaQuery to check the total window size.
-      final isLargeScreen = MediaQuery.of(context).size.width > 900;
-      
-      if (isLargeScreen) {
-        return const SizedBox.shrink(); // Hide button on large screens where sidebar is permanent
-      }
+    final location = GoRouterState.of(context).matchedLocation;
+    if (_bottomNavRoots.contains(location)) {
+      return const SizedBox.shrink();
+    }
 
-      return IconButton(
-        icon: const Icon(LucideIcons.menu, size: 22),
-        onPressed: () {
-          MainShell.scaffoldKey.currentState?.openDrawer();
-        },
-      );
-    });
+    return IconButton(
+      icon: const Icon(LucideIcons.arrowLeft, size: 22),
+      onPressed: () {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(AppRoutes.dashboard);
+        }
+      },
+    );
   }
 }

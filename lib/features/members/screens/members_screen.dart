@@ -11,9 +11,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/api_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/utils/error_handler.dart';
 import '../../../shared/utils/format.dart';
-import '../../../shared/widgets/drawer_menu_button.dart';
 
 final memberSearchProvider = StateProvider<String>((_) => '');
 final memberStatusFilterProvider = StateProvider<String>((_) => 'all');
@@ -416,6 +416,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final statusFilter = ref.watch(memberStatusFilterProvider);
     final sortBy = ref.watch(memberSortProvider);
     final sortOrder = ref.watch(memberSortOrderProvider);
@@ -427,24 +428,6 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        leading: const DrawerMenuButton(),
-        title: Text(
-          'Member Management',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w800,
-            fontSize: 19,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.bell, size: 20),
-            tooltip: 'Notifikasi',
-            onPressed: () => context.push(AppRoutes.notifications),
-          ),
-        ],
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 768;
@@ -459,15 +442,15 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Member Management',
-                      style: GoogleFonts.outfit(
+                      l10n.menuMember,
+                      style: GoogleFonts.figtree(
                         color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: isWide ? 26 : 22,
-                        letterSpacing: -0.5,
+                        fontWeight: FontWeight.w700,
+                        fontSize: isWide ? 28 : 26,
+                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     const Text(
                       'Manage active memberships and user profiles.',
                       style: TextStyle(
