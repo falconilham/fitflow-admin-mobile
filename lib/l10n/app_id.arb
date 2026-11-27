@@ -166,5 +166,17 @@
   "helpCenterSubtitle": "Panduan cepat operasional & dukungan FitFlow",
   "logoutAction": "Keluar",
   "profileMenuLabel": "Profil Admin",
-  "retryAction": "Coba Lagi"
+  "retryAction": "Coba Lagi",
+  "featureGuideShow": "Lihat Panduan",
+  "featureGuideHide": "Tutup Panduan",
+  "membershipGuideTitle": "Penjelasan Fitur Paket Membership",
+  "membershipGuideSummary": "Kelola paket akses masuk gym untuk pendaftaran kasir, perpanjangan & halaman join.",
+  "membershipGuidePeriod": "PERIOD (Durasi Waktu): Akses masuk gym tanpa batas selama masa berlaku aktif (DAYS LEFT).",
+  "membershipGuideSession": "GYM SESSIONS (Kunjungan): Kuota tiket datang mandiri (mis. 10x Datang), terpotong saat scan Turnstile Gate — bukan sesi PT.",
+  "membershipGuideExtras": "Mendukung harga promo, deskripsi paket, serta filter durasi & kunjungan gym.",
+  "ptGuideTitle": "Penjelasan Fitur Paket PT",
+  "ptGuideSummary": "Katalog paket sesi latihan tatap muka bersama Personal Trainer, terpisah dari tiket masuk gym.",
+  "ptGuideSoloGroup": "PT SESSIONS: Kuota bimbingan bersama Personal Trainer dengan batas masa berlaku & harga paket.",
+  "ptGuideDeduction": "Kuota hanya berkurang saat sesi latihan dijadwalkan & diselesaikan — tidak pernah berkurang di Turnstile Gate.",
+  "ptGuideCommission": "Terhubung langsung ke pembelian PT Member serta perhitungan laporan komisi & Payroll Trainer."
 }

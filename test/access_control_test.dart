@@ -110,5 +110,42 @@ void main() {
         'FRONT DESK',
       );
     });
+
+    test('Resolves GymBranding for white_label vs standard gym', () {
+      final standardGym = GymSimple(
+        id: 8,
+        name: 'Demo Gym',
+        logo: '/uploads/logo.png',
+        primaryColor: '#FF5500',
+        features: const ['dashboard', 'mobile'],
+      );
+      final whiteLabelGym = GymSimple(
+        id: 9,
+        name: 'Iron Club',
+        logo: '/uploads/iron.png',
+        primaryColor: '#3B82F6',
+        secondaryColor: '#1E293B',
+        features: const ['dashboard', 'mobile', 'white_label'],
+      );
+      final owner = AdminInfo(id: 1, name: 'Owner', email: 'o@b.c', role: 'owner');
+
+      final standardBranding = AccessControl.resolveGymBranding(
+        admin: owner,
+        gyms: [standardGym, whiteLabelGym],
+        activeGymId: 8,
+      );
+      expect(standardBranding.hasWhiteLabel, isFalse);
+      expect(standardBranding.name, 'Demo Gym');
+
+      final whiteLabelBranding = AccessControl.resolveGymBranding(
+        admin: owner,
+        gyms: [standardGym, whiteLabelGym],
+        activeGymId: 9,
+      );
+      expect(whiteLabelBranding.hasWhiteLabel, isTrue);
+      expect(whiteLabelBranding.name, 'Iron Club');
+      expect(whiteLabelBranding.logo, '/uploads/iron.png');
+      expect(whiteLabelBranding.primaryColor, '#3B82F6');
+    });
   });
 }

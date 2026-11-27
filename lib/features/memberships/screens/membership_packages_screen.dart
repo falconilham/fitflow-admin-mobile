@@ -11,6 +11,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/utils/error_handler.dart';
 import '../../../shared/utils/format.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../shared/widgets/feature_guide_banner.dart';
 
 class MembershipPackagesScreen extends ConsumerStatefulWidget {
   const MembershipPackagesScreen({super.key});
@@ -263,6 +264,25 @@ class _MembershipPackagesScreenState
       ),
       body: Column(
         children: [
+          FeatureGuideBanner(
+            title: l10n.membershipGuideTitle,
+            summary: l10n.membershipGuideSummary,
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+            items: [
+              FeatureGuideItem(
+                icon: LucideIcons.calendar,
+                text: l10n.membershipGuidePeriod,
+              ),
+              FeatureGuideItem(
+                icon: LucideIcons.ticket,
+                text: l10n.membershipGuideSession,
+              ),
+              FeatureGuideItem(
+                icon: LucideIcons.sparkles,
+                text: l10n.membershipGuideExtras,
+              ),
+            ],
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
             child: Row(

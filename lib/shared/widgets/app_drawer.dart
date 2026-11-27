@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/updater/app_updater_service.dart';
+import '../../data/models/models.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/dashboard/providers/dashboard_providers.dart';
 import '../../features/notifications/providers/notifications_provider.dart';
 
 import '../../shared/widgets/fitflow_logo.dart';
@@ -31,6 +33,7 @@ class AppDrawerContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider).valueOrNull;
     final admin = authState?.admin;
+    final gymsAsync = ref.watch(myGymsProvider);
     final gymName = admin?.gym?.name ?? admin?.gymName ?? 'FitFlow Gym';
     final location = GoRouterState.of(context).matchedLocation;
 
@@ -81,8 +84,17 @@ class AppDrawerContent extends ConsumerWidget {
                 ),
                 const SizedBox(height: 14),
 
-                // Official FitFlow Brand Logo (matching landing page)
-                const FitFlowLogo(fontSize: 20),
+                // Official Brand Logo (White Label Gym Logo if active, else FitFlow)
+                GymBrandHeaderLogo(
+                  branding: AccessControl.resolveGymBranding(
+                    admin: admin,
+                    gyms: gymsAsync.valueOrNull ?? const [],
+                    activeGymId: authState?.activeGymId,
+                    settings: ref.watch(activeGymSettingsProvider).valueOrNull,
+                    defaultName: gymName,
+                  ),
+                  fontSize: 20,
+                ),
                 const SizedBox(height: 18),
 
                 // Current Gym Card matching Web Sidebar

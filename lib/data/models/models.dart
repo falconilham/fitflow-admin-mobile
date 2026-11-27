@@ -93,11 +93,24 @@ List<String>? _parseFeatureKeys(dynamic rawFeatures) {
 class GymInfo {
   final int id;
   final String name;
+  final String? logo;
+  final String? primaryColor;
+  final String? secondaryColor;
   final List<String>? features;
-  GymInfo({this.id = 0, required this.name, this.features});
+  GymInfo({
+    this.id = 0,
+    required this.name,
+    this.logo,
+    this.primaryColor,
+    this.secondaryColor,
+    this.features,
+  });
   factory GymInfo.fromJson(Map<String, dynamic> json) => GymInfo(
         id: (json['id'] as num?)?.toInt() ?? 0,
         name: json['name'] as String? ?? '',
+        logo: json['logo'] as String?,
+        primaryColor: json['primaryColor'] as String?,
+        secondaryColor: json['secondaryColor'] as String?,
         features: _parseFeatureKeys(json['features']),
       );
 }
@@ -105,20 +118,115 @@ class GymInfo {
 class GymSimple {
   final int id;
   final String name;
+  final String? logo;
+  final String? primaryColor;
+  final String? secondaryColor;
   final List<String>? features;
 
-  GymSimple({required this.id, required this.name, this.features});
+  GymSimple({
+    required this.id,
+    required this.name,
+    this.logo,
+    this.primaryColor,
+    this.secondaryColor,
+    this.features,
+  });
 
   factory GymSimple.fromJson(Map<String, dynamic> json) {
     return GymSimple(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
+      logo: json['logo'] as String?,
+      primaryColor: json['primaryColor'] as String?,
+      secondaryColor: json['secondaryColor'] as String?,
       features: _parseFeatureKeys(json['features']),
     );
   }
 }
 
+class GymBranding {
+  final String name;
+  final String? logo;
+  final String? primaryColor;
+  final String? secondaryColor;
+  final bool hasWhiteLabel;
+
+  const GymBranding({
+    required this.name,
+    this.logo,
+    this.primaryColor,
+    this.secondaryColor,
+    this.hasWhiteLabel = false,
+  });
+}
+
 class AccessControl {
+  static GymBranding resolveGymBranding({
+    required AdminInfo? admin,
+    required List<GymSimple> gyms,
+    required int? activeGymId,
+    GymSettings? settings,
+    String defaultName = 'FitFlow Gym',
+  }) {
+    final features = resolveActiveFeatures(
+      admin: admin,
+      gyms: gyms,
+      activeGymId: activeGymId,
+    );
+    final hasWhiteLabel = features?.any(
+          (f) {
+            final lower = f.toLowerCase();
+            return lower == 'white_label' || lower == 'whitelabel';
+          },
+        ) ??
+        false;
+
+    GymSimple? matchedSimple;
+    GymInfo? matchedInfo;
+    if (activeGymId != null) {
+      for (final g in gyms) {
+        if (g.id == activeGymId) {
+          matchedSimple = g;
+          break;
+        }
+      }
+      if (admin != null) {
+        for (final g in admin.ownedGyms) {
+          if (g.id == activeGymId) {
+            matchedInfo = g;
+            break;
+          }
+        }
+        if (matchedInfo == null &&
+            admin.gym != null &&
+            (admin.gym!.id == activeGymId || admin.gym!.id == 0)) {
+          matchedInfo = admin.gym;
+        }
+      }
+    }
+    matchedInfo ??= admin?.gym;
+
+    final resolvedName = (settings != null && settings.name.isNotEmpty)
+        ? settings.name
+        : (matchedSimple?.name.isNotEmpty == true
+            ? matchedSimple!.name
+            : (matchedInfo?.name.isNotEmpty == true
+                ? matchedInfo!.name
+                : defaultName));
+
+    return GymBranding(
+      name: resolvedName,
+      logo: settings?.logo ?? matchedSimple?.logo ?? matchedInfo?.logo,
+      primaryColor: settings?.primaryColor ??
+          matchedSimple?.primaryColor ??
+          matchedInfo?.primaryColor,
+      secondaryColor: settings?.secondaryColor ??
+          matchedSimple?.secondaryColor ??
+          matchedInfo?.secondaryColor,
+      hasWhiteLabel: hasWhiteLabel,
+    );
+  }
+
   static List<String>? resolveActiveFeatures({
     required AdminInfo? admin,
     required List<GymSimple> gyms,

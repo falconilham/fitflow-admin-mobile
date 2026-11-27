@@ -362,4 +362,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retryAction => 'Retry';
+
+  @override
+  String get featureGuideShow => 'Show Guide';
+
+  @override
+  String get featureGuideHide => 'Hide Guide';
+
+  @override
+  String get membershipGuideTitle => 'How Membership Packages Work';
+
+  @override
+  String get membershipGuideSummary =>
+      'Manage gym entry packages for front desk signup, renewals & public join page.';
+
+  @override
+  String get membershipGuidePeriod =>
+      'PERIOD (Time-Based): Unlimited gym access while validity duration remains active (DAYS LEFT).';
+
+  @override
+  String get membershipGuideSession =>
+      'GYM SESSIONS (Visits): Ticket-based entry quota (e.g. 10x Visits), deducted at Turnstile Gate — not PT sessions.';
+
+  @override
+  String get membershipGuideExtras =>
+      'Supports pricing, descriptions, and quick filtering by duration vs gym visits.';
+
+  @override
+  String get ptGuideTitle => 'How PT Packages Work';
+
+  @override
+  String get ptGuideSummary =>
+      'Catalog of Personal Trainer coaching bundles sold separately from gym floor entry.';
+
+  @override
+  String get ptGuideSoloGroup =>
+      'PT SESSIONS: 1-on-1 or group training session quota with configurable validity period & package pricing.';
+
+  @override
+  String get ptGuideDeduction =>
+      'Sessions only deduct when booked and completed with a trainer — never deducted at the Turnstile Gate.';
+
+  @override
+  String get ptGuideCommission =>
+      'Directly linked to member PT purchases and automated trainer commission / payroll tracking.';
 }

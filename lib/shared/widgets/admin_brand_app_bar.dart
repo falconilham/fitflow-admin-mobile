@@ -23,18 +23,19 @@ class AdminBrandAppBar extends ConsumerWidget {
     final admin = authState?.admin;
     final activeGymId = authState?.activeGymId;
     final gymsAsync = ref.watch(myGymsProvider);
+    final settingsAsync = ref.watch(activeGymSettingsProvider);
     final unreadCount = ref.watch(unreadNotificationsCountProvider);
 
     final gyms = gymsAsync.valueOrNull ?? const <GymSimple>[];
-    final activeGymName = gyms
-        .firstWhere(
-          (g) => g.id == activeGymId,
-          orElse: () => GymSimple(
-            id: activeGymId ?? 0,
-            name: admin?.gym?.name ?? l10n.activeBranchDefault,
-          ),
-        )
-        .name;
+    final branding = AccessControl.resolveGymBranding(
+      admin: admin,
+      gyms: gyms,
+      activeGymId: activeGymId,
+      settings: settingsAsync.valueOrNull,
+      defaultName: l10n.activeBranchDefault,
+    );
+    final activeGymName = branding.name;
+    final primary = Theme.of(context).colorScheme.primary;
 
     final roleLabel = admin?.roleBadgeLabel ?? l10n.roleAdmin;
 
@@ -59,11 +60,14 @@ class AdminBrandAppBar extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Flexible(
+                      Flexible(
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
-                          child: FitFlowLogo(fontSize: 17),
+                          child: GymBrandHeaderLogo(
+                            branding: branding,
+                            fontSize: 17,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -73,13 +77,13 @@ class AdminBrandAppBar extends ConsumerWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.accentPill,
+                          color: primary.withAlpha(36),
                           borderRadius: BorderRadius.circular(13),
                         ),
                         child: Text(
                           roleLabel,
                           style: GoogleFonts.figtree(
-                            color: AppColors.accent,
+                            color: primary,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.2,
@@ -157,7 +161,7 @@ class AdminBrandAppBar extends ConsumerWidget {
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: AppColors.accent,
+                            color: primary,
                             borderRadius: BorderRadius.circular(3),
                           ),
                         ),

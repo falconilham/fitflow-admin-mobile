@@ -13,6 +13,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/utils/error_handler.dart';
 import '../../../shared/utils/format.dart';
 import '../../../shared/widgets/drawer_menu_button.dart';
+import '../../../shared/widgets/feature_guide_banner.dart';
 
 final _ptPackagesProvider =
     FutureProvider.autoDispose<List<MembershipPackage>>((ref) async {
@@ -242,126 +243,151 @@ class _PtPackagesScreenState extends ConsumerState<PtPackagesScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        color: AppColors.accent,
-        backgroundColor: AppColors.card,
-        onRefresh: () async => ref.invalidate(_ptPackagesProvider),
-        child: packagesAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.accent),
-          ),
-          error: (e, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                ErrorHandler.parse(e),
-                style: const TextStyle(color: AppColors.error),
+      body: Column(
+        children: [
+          FeatureGuideBanner(
+            title: l10n.ptGuideTitle,
+            summary: l10n.ptGuideSummary,
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            items: [
+              FeatureGuideItem(
+                icon: LucideIcons.dumbbell,
+                text: l10n.ptGuideSoloGroup,
               ),
-            ),
+              FeatureGuideItem(
+                icon: LucideIcons.shieldCheck,
+                text: l10n.ptGuideDeduction,
+              ),
+              FeatureGuideItem(
+                icon: LucideIcons.wallet,
+                text: l10n.ptGuideCommission,
+              ),
+            ],
           ),
-          data: (packages) {
-            if (packages.isEmpty) {
-              return ListView(
-                children: [
-                  const SizedBox(height: 120),
-                  Center(
-                    child: Column(
+          Expanded(
+            child: RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: AppColors.card,
+              onRefresh: () async => ref.invalidate(_ptPackagesProvider),
+              child: packagesAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppColors.accent),
+                ),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      ErrorHandler.parse(e),
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                  ),
+                ),
+                data: (packages) {
+                  if (packages.isEmpty) {
+                    return ListView(
                       children: [
-                        const Icon(
-                          LucideIcons.shoppingBag,
-                          size: 40,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          l10n.ptPackagesEmpty,
-                          style: GoogleFonts.figtree(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
+                        const SizedBox(height: 100),
+                        Center(
+                          child: Column(
+                            children: [
+                              const Icon(
+                                LucideIcons.shoppingBag,
+                                size: 40,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                l10n.ptPackagesEmpty,
+                                style: GoogleFonts.figtree(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                ],
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: packages.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, i) {
-                final pkg = packages[i];
-                final sessions = pkg.totalSessions ?? pkg.bonusPtSessions;
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: packages.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) {
+                      final pkg = packages[i];
+                      final sessions = pkg.totalSessions ?? pkg.bonusPtSessions;
+                      return Container(
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.iconSurface,
-                          borderRadius: BorderRadius.circular(12),
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
                         ),
-                        child: const Icon(
-                          LucideIcons.dumbbell,
-                          size: 20,
-                          color: AppColors.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              pkg.name,
-                              style: GoogleFonts.figtree(
-                                color: AppColors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.iconSurface,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                LucideIcons.dumbbell,
+                                size: 20,
+                                color: AppColors.accent,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$sessions Sesi PT · ${pkg.durationMonths} Bulan · ${formatCurrency(pkg.price.toDouble())}',
-                              style: GoogleFonts.figtree(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    pkg.name,
+                                    style: GoogleFonts.figtree(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$sessions PT SESSIONS · ${pkg.durationMonths} Bulan · ${formatCurrency(pkg.price.toDouble())}',
+                                    style: GoogleFonts.figtree(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                LucideIcons.pencil,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
+                              onPressed: () => _openEditor(pkg),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                LucideIcons.trash2,
+                                size: 18,
+                                color: AppColors.error,
+                              ),
+                              onPressed: () => _deletePackage(pkg.id),
                             ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          LucideIcons.pencil,
-                          size: 18,
-                          color: AppColors.textSecondary,
-                        ),
-                        onPressed: () => _openEditor(pkg),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          LucideIcons.trash2,
-                          size: 18,
-                          color: AppColors.error,
-                        ),
-                        onPressed: () => _deletePackage(pkg.id),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

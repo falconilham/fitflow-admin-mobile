@@ -31,18 +31,46 @@ abstract class AppColors {
 }
 
 class AppTheme {
-  static ThemeData get dark {
+  static Color? parseHexColor(String? hexString) {
+    if (hexString == null || hexString.trim().isEmpty) return null;
+    final clean = hexString.trim().replaceFirst('#', '');
+    final buffer = StringBuffer();
+    if (clean.length == 6) {
+      buffer.write('ff');
+      buffer.write(clean);
+    } else if (clean.length == 8) {
+      buffer.write(clean);
+    } else {
+      return null;
+    }
+    try {
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static ThemeData get dark => getTheme();
+
+  static ThemeData getTheme({Color? customPrimary, Color? customSecondary}) {
+    final primary = customPrimary ?? AppColors.accent;
+    final secondary = customSecondary ?? primary;
+    final onPrimary =
+        primary.computeLuminance() > 0.5 ? const Color(0xFF000000) : Colors.white;
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      primaryColor: primary,
       scaffoldBackgroundColor: AppColors.background,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.accent,
-        secondary: AppColors.accent,
+      colorScheme: ColorScheme.dark(
+        primary: primary,
+        secondary: secondary,
         surface: AppColors.surface,
         error: AppColors.error,
-        onPrimary: Color(0xFF000000),
-        onSecondary: Color(0xFF000000),
+        onPrimary: onPrimary,
+        onSecondary:
+            secondary.computeLuminance() > 0.5 ? const Color(0xFF000000) : Colors.white,
         onSurface: AppColors.textPrimary,
       ),
       appBarTheme: AppBarTheme(
@@ -59,7 +87,7 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.tabBar,
-        selectedItemColor: AppColors.accent,
+        selectedItemColor: primary,
         unselectedItemColor: AppColors.textSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -89,7 +117,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+          borderSide: BorderSide(color: primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -100,8 +128,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.accent,
-          foregroundColor: AppColors.background,
+          backgroundColor: primary,
+          foregroundColor: onPrimary,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -111,7 +139,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.accent,
+          foregroundColor: primary,
           textStyle: GoogleFonts.figtree(fontWeight: FontWeight.w600),
         ),
       ),

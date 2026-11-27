@@ -364,4 +364,48 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get retryAction => 'Coba Lagi';
+
+  @override
+  String get featureGuideShow => 'Lihat Panduan';
+
+  @override
+  String get featureGuideHide => 'Tutup Panduan';
+
+  @override
+  String get membershipGuideTitle => 'Penjelasan Fitur Paket Membership';
+
+  @override
+  String get membershipGuideSummary =>
+      'Kelola paket akses masuk gym untuk pendaftaran kasir, perpanjangan & halaman join.';
+
+  @override
+  String get membershipGuidePeriod =>
+      'PERIOD (Durasi Waktu): Akses masuk gym tanpa batas selama masa berlaku aktif (DAYS LEFT).';
+
+  @override
+  String get membershipGuideSession =>
+      'GYM SESSIONS (Kunjungan): Kuota tiket datang mandiri (mis. 10x Datang), terpotong saat scan Turnstile Gate — bukan sesi PT.';
+
+  @override
+  String get membershipGuideExtras =>
+      'Mendukung harga promo, deskripsi paket, serta filter durasi & kunjungan gym.';
+
+  @override
+  String get ptGuideTitle => 'Penjelasan Fitur Paket PT';
+
+  @override
+  String get ptGuideSummary =>
+      'Katalog paket sesi latihan tatap muka bersama Personal Trainer, terpisah dari tiket masuk gym.';
+
+  @override
+  String get ptGuideSoloGroup =>
+      'PT SESSIONS: Kuota bimbingan bersama Personal Trainer dengan batas masa berlaku & harga paket.';
+
+  @override
+  String get ptGuideDeduction =>
+      'Kuota hanya berkurang saat sesi latihan dijadwalkan & diselesaikan — tidak pernah berkurang di Turnstile Gate.';
+
+  @override
+  String get ptGuideCommission =>
+      'Terhubung langsung ke pembelian PT Member serta perhitungan laporan komisi & Payroll Trainer.';
 }

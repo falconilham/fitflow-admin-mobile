@@ -179,6 +179,7 @@ class _FitflowBottomNav extends StatelessWidget {
                 children: List.generate(items.length, (i) {
                   final item = items[i];
                   final isSelected = i == currentIndex;
+                  final primary = Theme.of(context).colorScheme.primary;
                   return Expanded(
                     child: InkWell(
                       onTap: () => onTap(i),
@@ -193,7 +194,7 @@ class _FitflowBottomNav extends StatelessWidget {
                             height: 32,
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppColors.accentTint
+                                  ? primary.withAlpha(38)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -201,7 +202,7 @@ class _FitflowBottomNav extends StatelessWidget {
                               item.icon,
                               size: 21,
                               color: isSelected
-                                  ? AppColors.accent
+                                  ? primary
                                   : AppColors.textSecondary,
                             ),
                           ),
@@ -215,7 +216,7 @@ class _FitflowBottomNav extends StatelessWidget {
                               fontWeight:
                                   isSelected ? FontWeight.w700 : FontWeight.w500,
                               color: isSelected
-                                  ? AppColors.accent
+                                  ? primary
                                   : AppColors.textSecondary,
                             ),
                           ),

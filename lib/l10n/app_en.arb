@@ -111,5 +111,17 @@
   "helpCenterSubtitle": "Quick operations guide & FitFlow support",
   "logoutAction": "Logout",
   "profileMenuLabel": "Admin Profile",
-  "retryAction": "Retry"
+  "retryAction": "Retry",
+  "featureGuideShow": "Show Guide",
+  "featureGuideHide": "Hide Guide",
+  "membershipGuideTitle": "How Membership Packages Work",
+  "membershipGuideSummary": "Manage gym entry packages for front desk signup, renewals & public join page.",
+  "membershipGuidePeriod": "PERIOD (Time-Based): Unlimited gym access while validity duration remains active (DAYS LEFT).",
+  "membershipGuideSession": "GYM SESSIONS (Visits): Ticket-based entry quota (e.g. 10x Visits), deducted at Turnstile Gate — not PT sessions.",
+  "membershipGuideExtras": "Supports pricing, descriptions, and quick filtering by duration vs gym visits.",
+  "ptGuideTitle": "How PT Packages Work",
+  "ptGuideSummary": "Catalog of Personal Trainer coaching bundles sold separately from gym floor entry.",
+  "ptGuideSoloGroup": "PT SESSIONS: 1-on-1 or group training session quota with configurable validity period & package pricing.",
+  "ptGuideDeduction": "Sessions only deduct when booked and completed with a trainer — never deducted at the Turnstile Gate.",
+  "ptGuideCommission": "Directly linked to member PT purchases and automated trainer commission / payroll tracking."
 }

@@ -7,6 +7,9 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'data/models/models.dart';
+import 'features/auth/providers/auth_provider.dart';
+import 'features/dashboard/providers/dashboard_providers.dart';
 import 'l10n/generated/app_localizations.dart';
 
 Future<void> main() async {
@@ -40,10 +43,38 @@ class FitFlowAdminApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    final authState = ref.watch(authProvider).valueOrNull;
+    final isAuthenticated = authState?.isAuthenticated == true;
+    final gyms = isAuthenticated
+        ? (ref.watch(myGymsProvider).valueOrNull ?? const <GymSimple>[])
+        : const <GymSimple>[];
+    final settings = isAuthenticated
+        ? ref.watch(activeGymSettingsProvider).valueOrNull
+        : null;
+
+    final branding = isAuthenticated
+        ? AccessControl.resolveGymBranding(
+            admin: authState?.admin,
+            gyms: gyms,
+            activeGymId: authState?.activeGymId,
+            settings: settings,
+          )
+        : const GymBranding(name: 'FitFlow Admin');
+
+    final customPrimary = branding.hasWhiteLabel
+        ? AppTheme.parseHexColor(branding.primaryColor)
+        : null;
+    final customSecondary = branding.hasWhiteLabel
+        ? AppTheme.parseHexColor(branding.secondaryColor)
+        : null;
+
     return MaterialApp.router(
-      title: 'FitFlow Admin',
+      title: branding.hasWhiteLabel ? branding.name : 'FitFlow Admin',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
+      theme: AppTheme.getTheme(
+        customPrimary: customPrimary,
+        customSecondary: customSecondary,
+      ),
       routerConfig: router,
       locale: const Locale('id', 'ID'),
       supportedLocales: const [

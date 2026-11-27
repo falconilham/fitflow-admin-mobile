@@ -769,6 +769,78 @@ abstract class AppLocalizations {
   /// In id, this message translates to:
   /// **'Coba Lagi'**
   String get retryAction;
+
+  /// No description provided for @featureGuideShow.
+  ///
+  /// In id, this message translates to:
+  /// **'Lihat Panduan'**
+  String get featureGuideShow;
+
+  /// No description provided for @featureGuideHide.
+  ///
+  /// In id, this message translates to:
+  /// **'Tutup Panduan'**
+  String get featureGuideHide;
+
+  /// No description provided for @membershipGuideTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Penjelasan Fitur Paket Membership'**
+  String get membershipGuideTitle;
+
+  /// No description provided for @membershipGuideSummary.
+  ///
+  /// In id, this message translates to:
+  /// **'Kelola paket akses masuk gym untuk pendaftaran kasir, perpanjangan & halaman join.'**
+  String get membershipGuideSummary;
+
+  /// No description provided for @membershipGuidePeriod.
+  ///
+  /// In id, this message translates to:
+  /// **'PERIOD (Durasi Waktu): Akses masuk gym tanpa batas selama masa berlaku aktif (DAYS LEFT).'**
+  String get membershipGuidePeriod;
+
+  /// No description provided for @membershipGuideSession.
+  ///
+  /// In id, this message translates to:
+  /// **'GYM SESSIONS (Kunjungan): Kuota tiket datang mandiri (mis. 10x Datang), terpotong saat scan Turnstile Gate — bukan sesi PT.'**
+  String get membershipGuideSession;
+
+  /// No description provided for @membershipGuideExtras.
+  ///
+  /// In id, this message translates to:
+  /// **'Mendukung harga promo, deskripsi paket, serta filter durasi & kunjungan gym.'**
+  String get membershipGuideExtras;
+
+  /// No description provided for @ptGuideTitle.
+  ///
+  /// In id, this message translates to:
+  /// **'Penjelasan Fitur Paket PT'**
+  String get ptGuideTitle;
+
+  /// No description provided for @ptGuideSummary.
+  ///
+  /// In id, this message translates to:
+  /// **'Katalog paket sesi latihan tatap muka bersama Personal Trainer, terpisah dari tiket masuk gym.'**
+  String get ptGuideSummary;
+
+  /// No description provided for @ptGuideSoloGroup.
+  ///
+  /// In id, this message translates to:
+  /// **'PT SESSIONS: Kuota bimbingan bersama Personal Trainer dengan batas masa berlaku & harga paket.'**
+  String get ptGuideSoloGroup;
+
+  /// No description provided for @ptGuideDeduction.
+  ///
+  /// In id, this message translates to:
+  /// **'Kuota hanya berkurang saat sesi latihan dijadwalkan & diselesaikan — tidak pernah berkurang di Turnstile Gate.'**
+  String get ptGuideDeduction;
+
+  /// No description provided for @ptGuideCommission.
+  ///
+  /// In id, this message translates to:
+  /// **'Terhubung langsung ke pembelian PT Member serta perhitungan laporan komisi & Payroll Trainer.'**
+  String get ptGuideCommission;
 }
 
 class _AppLocalizationsDelegate
