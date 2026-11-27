@@ -1,5 +1,6 @@
 {
   "$schema": "https://bla.tools/schemas/bla.config.v1.json",
+  "input": "./dist",
   "intensity": "bankrupt",
   "emitManifest": false,
   "llmDirectives": false,
@@ -7,5 +8,6 @@
   "minDefenseScore": 90,
   "weaveDecoys": false,
   "selfSeal": false,
-  "sidecarEntangle": false
+  "sidecarEntangle": false,
+  "seed": "bla-f1d55aad7a138f7c6d5e37313a5a76a2"
 }

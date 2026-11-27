@@ -170,8 +170,10 @@ case "$CHOICE" in
     DEBUG_SYMBOLS_DIR="build/debug-info/$FINAL_VERSION_NAME"
     mkdir -p "$DEBUG_SYMBOLS_DIR"
     if command -v shorebird &> /dev/null; then
+      USING_SHOREBIRD=1
       shorebird release android --artifact=apk --flutter-version=3.41.4 --obfuscate --split-debug-info="$DEBUG_SYMBOLS_DIR"
     else
+      USING_SHOREBIRD=0
       echo -e "${YELLOW}Shorebird tidak ditemukan, menggunakan 'flutter build apk --release --obfuscate'...${NC}"
       flutter build apk --release --obfuscate --split-debug-info="$DEBUG_SYMBOLS_DIR"
     fi
@@ -183,11 +185,16 @@ case "$CHOICE" in
       exit 1
     fi
 
-    # Hardening & Audit BLA pada artefak DEX & ELF
+    # Hardening & Repack BLA ke APK final
     if [ -f "./scripts/bla-harden.sh" ]; then
       echo ""
-      echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Hardening & Audit pada artefak build...${NC}"
-      ./scripts/bla-harden.sh harden 2>/dev/null || true
+      echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Hardening & Repack APK...${NC}"
+      ./scripts/bla-harden.sh harden
+      if [ "$USING_SHOREBIRD" -eq 1 ]; then
+        ./scripts/bla-harden.sh repack "$BUILT_APK" --preserve-libapp
+      else
+        ./scripts/bla-harden.sh repack "$BUILT_APK"
+      fi
     fi
 
     echo -e "${BLUE}>>> [3/5] Menyiapkan folder downloads di server VPS ($VPS_ALIAS)...${NC}"
@@ -227,16 +234,16 @@ case "$CHOICE" in
 
     BUILT_APK=$(find build/app/outputs/flutter-apk -name "*release*.apk" 2>/dev/null | head -n 1)
     if [ -n "$BUILT_APK" ] && [ -f "$BUILT_APK" ]; then
+      # Hardening & Repack BLA jika script tersedia
+      if [ -f "./scripts/bla-harden.sh" ]; then
+        echo ""
+        echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Hardening & Repack APK...${NC}"
+        ./scripts/bla-harden.sh harden
+        ./scripts/bla-harden.sh repack "$BUILT_APK"
+      fi
       cp "$BUILT_APK" "./$APK_TARGET_NAME"
       echo ""
       echo -e "${GREEN}✓ File APK berhasil disimpan di: ./$APK_TARGET_NAME (v$FINAL_VERSION)${NC}"
-
-      # Hardening BLA jika script tersedia
-      if [ -f "./scripts/bla-harden.sh" ]; then
-        echo ""
-        echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Hardening pada artefak build...${NC}"
-        ./scripts/bla-harden.sh harden 2>/dev/null || true
-      fi
     fi
     ;;
 
