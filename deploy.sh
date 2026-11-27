@@ -166,12 +166,14 @@ case "$CHOICE" in
     echo -e "${BLUE}>>> [1/5] Menyiapkan environment produksi...${NC}"
     cp .env.example .env 2>/dev/null || true
 
-    echo -e "${BLUE}>>> [2/5] Mengompilasi Shorebird Release APK Admin (v$FINAL_VERSION)...${NC}"
+    echo -e "${BLUE}>>> [2/5] Mengompilasi Shorebird Release APK Admin Obfuscated (v$FINAL_VERSION)...${NC}"
+    DEBUG_SYMBOLS_DIR="build/debug-info/$FINAL_VERSION_NAME"
+    mkdir -p "$DEBUG_SYMBOLS_DIR"
     if command -v shorebird &> /dev/null; then
-      shorebird release android --artifact=apk --flutter-version=3.41.4
+      shorebird release android --artifact=apk --flutter-version=3.41.4 --obfuscate --split-debug-info="$DEBUG_SYMBOLS_DIR"
     else
-      echo -e "${YELLOW}Shorebird tidak ditemukan, menggunakan 'flutter build apk --release'...${NC}"
-      flutter build apk --release
+      echo -e "${YELLOW}Shorebird tidak ditemukan, menggunakan 'flutter build apk --release --obfuscate'...${NC}"
+      flutter build apk --release --obfuscate --split-debug-info="$DEBUG_SYMBOLS_DIR"
     fi
 
     # Temukan file APK hasil build
@@ -181,11 +183,11 @@ case "$CHOICE" in
       exit 1
     fi
 
-    # Audit BLA jika script tersedia
+    # Hardening & Audit BLA pada artefak DEX & ELF
     if [ -f "./scripts/bla-harden.sh" ]; then
       echo ""
-      echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Security Audit pada artefak build...${NC}"
-      ./scripts/bla-harden.sh audit 2>/dev/null || true
+      echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Hardening & Audit pada artefak build...${NC}"
+      ./scripts/bla-harden.sh harden 2>/dev/null || true
     fi
 
     echo -e "${BLUE}>>> [3/5] Menyiapkan folder downloads di server VPS ($VPS_ALIAS)...${NC}"
@@ -218,8 +220,10 @@ case "$CHOICE" in
     prompt_semver_bump "$2"
 
     echo ""
-    echo -e "${GREEN}>>> Mengompilasi Release APK Admin (v$FINAL_VERSION)...${NC}"
-    flutter build apk --release
+    echo -e "${GREEN}>>> Mengompilasi Release APK Admin Obfuscated (v$FINAL_VERSION)...${NC}"
+    DEBUG_SYMBOLS_DIR="build/debug-info/$FINAL_VERSION_NAME"
+    mkdir -p "$DEBUG_SYMBOLS_DIR"
+    flutter build apk --release --obfuscate --split-debug-info="$DEBUG_SYMBOLS_DIR"
 
     BUILT_APK=$(find build/app/outputs/flutter-apk -name "*release*.apk" 2>/dev/null | head -n 1)
     if [ -n "$BUILT_APK" ] && [ -f "$BUILT_APK" ]; then
@@ -227,11 +231,11 @@ case "$CHOICE" in
       echo ""
       echo -e "${GREEN}✓ File APK berhasil disimpan di: ./$APK_TARGET_NAME (v$FINAL_VERSION)${NC}"
 
-      # Audit BLA jika script tersedia
+      # Hardening BLA jika script tersedia
       if [ -f "./scripts/bla-harden.sh" ]; then
         echo ""
-        echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Security Audit pada artefak build...${NC}"
-        ./scripts/bla-harden.sh audit 2>/dev/null || true
+        echo -e "${CYAN}>>> [BLA] Menjalankan Anti-Reverse Engineering Hardening pada artefak build...${NC}"
+        ./scripts/bla-harden.sh harden 2>/dev/null || true
       fi
     fi
     ;;
